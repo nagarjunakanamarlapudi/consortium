@@ -15,7 +15,7 @@
 - **LLM Consortium** (`/Users/nagarjuna/projects/llm-consortium`) — an empirical study of 12 multi-agent collaboration topologies. It established *which* ways of combining agents actually improve quality: structural-adversarial review with rewrite mandates (#1), cross-model/diverse review (#2), specialist panels, structured debate; and *what fails*: naive parallel-merge ("Frankenstein"), solo self-review.
 - **Ada Dev workflow** (`/Users/nagarjuna/projects/Aadhaa/.claude/skills/aadhaa-dev-workflow`) — a session-scoped effort dispatcher (`quick`/`standard`/`thorough`/`regular`) with a reviewers registry, parallel wave implementation, and multi-perspective review.
 
-**Thesis:** Ada provides the *delivery frame* (a settable level, a banner, an off switch, the posture principle, a reviewer registry); the Consortium study provides the *content of the modes* (which deliberation pattern + the hard-won lessons). The product is a single dial — **how high is the evaluation bar?** — realized as a small ladder of evaluation tiers plus one generative debate mode, all **grounded in real repo state and conversation context** (not abstract prompts, which is what the study benchmarked).
+**Thesis:** Ada provides the *delivery frame* (a settable level, a banner, an off switch, the posture principle, a reviewer registry); the Consortium study provides the *content of the modes* (which deliberation pattern + the hard-won lessons). The product is a single dial — **how high is the evaluation bar?** — realized as a small ladder of evaluation tiers plus two siblings — a generative `debate` mode and an autonomous `vibe-coding` mode — all **grounded in real repo state and conversation context** (not abstract prompts, which is what the study benchmarked).
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Goals
 - A clean, **installable, cross-machine** Claude Code plugin (single repo doubles as its own marketplace).
-- One legible product axis: an **evaluation-bar ladder** (`off` ⊂ `self-eval` ⊂ `experts-eval` ⊂ `bar-raiser-eval`) plus a selectable `debate` mode.
+- One legible product axis: an **evaluation-bar ladder** (`off` ⊂ `self-eval` ⊂ `experts-eval` ⊂ `bar-raiser-eval`) plus selectable `debate` and `vibe-coding` modes.
 - **Max-parallel implementation** via subagents as a constant (not a knob).
 - A **pluggable reviewer registry**: add a reviewer = add an agent file + one registry row; rows may reference *any* installed agent (Consortium's own or another plugin's).
 - A strong, **general starter reviewer roster** (generalized from Aadhaa + new), with the Aadhaa stack-specific skills documented as extension *examples*.
@@ -53,9 +53,11 @@ Plan  →  ⟦plan checkpoint⟧  →  Build (always max-parallel subagents)  �
 | **`experts-eval`** | expert reviewers vet the plan *(count scales to change)* | max-parallel | spec-compliance gate → expert panel + diverse lenses → fix loop | **advisory** |
 | **`bar-raiser-eval`** | experts **+ bar-raiser** vet the plan | max-parallel | experts **+ bar-raiser**; rewrite mandates | **hard verdict gate, ≤N rounds** |
 | **`debate`** | rivals argue competing approaches → **judge synthesizes** the plan | max-parallel | expert review (advisory), fix loop | advisory |
+| **`vibe-coding`** | *autonomous* — plans & proceeds, no approval | max-parallel | experts **+ bar-raiser**, **autonomous** | **hard gate, severity-gated finish** |
 
 - Tiers 1–4 (`off`…`bar-raiser-eval`) are a **cumulative ladder** — each a superset of the one above. One mental dial.
-- `debate` is the **one generative mode**: a selectable sibling whose *plan phase* is itself a consortium (LLM-Consortium v8). Its build checkpoint runs at `experts-eval` level.
+- `debate` is a selectable sibling — the **one generative mode**, whose *plan phase* is itself a consortium (LLM-Consortium v8); its build checkpoint runs at `experts-eval` level.
+- `vibe-coding` is a selectable sibling — the **autonomous mode**: `bar-raiser-eval` with every human checkpoint removed (see §3.6).
 
 ### 3.2 Two checkpoints
 Evaluation is not a single stage — it happens at **plan** (cheapest place to catch a wrong approach) and at **build** (the diff). The tier staffs both.
@@ -71,6 +73,18 @@ A single authoritative gatekeeper (Amazon metaphor + study v4b), **distinct from
 - **Posture principle** — a tier is a *ceiling, not a quota*; trivial edits stay trivial. Reviewer count scales to the change.
 - **Escalate, don't silently inflate** — if a task proves bigger/riskier mid-flight, suggest dialing up rather than quietly doing more.
 - **No competing-implementations-then-merge** — deliberately avoided; that is the study's v3 "Frankenstein" anti-pattern. Build parallelism is throughput over *disjoint* files only.
+
+### 3.6 `vibe-coding` — autonomous mode
+`vibe-coding` runs the **`bar-raiser-eval` pipeline in autonomous posture**: it plans, builds, and runs the bar-raiser gate **without stopping for human input**, resolving ambiguities with **sensible assumptions it documents as it goes**, and hands back finished work **at the end** as a **PR** (never auto-merged; on a fresh branch).
+
+**Severity-gated finish** (the sole human seam, and it's at the *end*, not mid-run):
+- Bar-raiser **accepts** → open the PR.
+- Bar-raiser still rejects after the N-round cap but remaining concerns are **minor** (nits, naming, small refactors) → **open the PR anyway**, with the concerns documented in the PR body.
+- Remaining concerns are **major/blocking** (correctness, security, data-loss, architectural) → **stop, do not open a PR, report**, and the skill asks the human for next steps.
+
+Because workflows can't ask for input, the *workflow* returns `{ outcome: "shipped" | "blocked", pr?, concerns[], report }` autonomously (branching on the bar-raiser's `severity` tags); the **skill** handles the escalation only when `outcome === "blocked"`. So `vibe-coding` is a single end-to-end workflow run with at most one human touchpoint *afterward*.
+
+**Safety:** fresh branch only; permission prompts still gate destructive ops; respects budget/concurrency caps; the banner warns it runs hands-off to completion.
 
 ---
 
@@ -110,7 +124,8 @@ consortium/
 │   ├── plan-review.js               # plan checkpoint fan-out
 │   ├── build-review.js              # spec-gate → panel + lenses → fix loop
 │   ├── bar-raiser-gate.js           # verdict loop (≤N rounds)
-│   └── debate.js                    # debaters → judge → plan
+│   ├── debate.js                    # debaters → judge → plan
+│   └── vibe.js                      # autonomous end-to-end (bar-raiser posture)
 ├── hooks/
 │   └── hooks.json                   # SessionStart: establish session id + banner reminder
 ├── docs/
@@ -165,7 +180,7 @@ Once installed, everything is namespaced: skill `consortium:team-dev-workflow`, 
   - `team-dev-effort <tier> --global` — write the global default into `~/.claude/settings.json`.
 - **Banner** (printed by the orchestrator each engagement; load-bearing — its absence signals the workflow is not active):
   ```
-  🎚️ Consortium: experts-eval (session) · expert panel reviews plan + diff (advisory) — change: /consortium:team-dev-effort off|self-eval|experts-eval|bar-raiser-eval|debate
+  🎚️ Consortium: experts-eval (session) · expert panel reviews plan + diff (advisory) — change: /consortium:team-dev-effort off|self-eval|experts-eval|bar-raiser-eval|debate|vibe-coding
   ```
 
 ---
@@ -180,6 +195,7 @@ The **skill is the conductor**: it resolves the tier, prints the banner, runs th
 - Workflow scripts call our agents as typed subagents — `agent(prompt, { agentType: "consortium:bar-raiser", schema })` — yielding **schema-validated** verdicts/findings (no free-text parsing).
 - **Packaging reality:** dynamic workflows are *not* a first-class plugin component (no auto-registered `workflows/`). We bundle the scripts and the skill invokes them via the Workflow tool with `scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/<file>.js"` and `args`. Requires Claude Code **v2.1.154+** (research preview); the subagent fallback covers older or disabled setups (no runtime detection exists, so the skill offers the fallback whenever a workflow call isn't possible).
 - **Script constraints:** scripts orchestrate only (no direct FS/shell — agents do all I/O); avoid `Date.now()` / `Math.random()` / argless `new Date()` (they throw — pass timestamps via `args`, vary by index); respect the ≤16-concurrent and 1000-agent caps; reference bundled files only via `${CLAUDE_PLUGIN_ROOT}` (no `../`).
+- **`vibe-coding` is the one fully-autonomous mode** — with no interactive seams it's a *single* end-to-end workflow; its only possible human touchpoint (a major unresolved concern) is handled by the skill *after* the run returns `blocked` (§3.6).
 
 On any build/refactor/ship request the skill runs:
 
@@ -219,7 +235,7 @@ Always-on (at `experts-eval`+): `spec-clarity-reviewer` (plan), `domain-conventi
 
 ### 5.3 Synthesis & verdict (shared building blocks)
 - **Rubric-guided synthesis** — when multiple reviewers return findings, the orchestrator dedups and reconciles **dimension-by-dimension** (security, correctness, maintainability, …), not naive concatenation. Reimplements the study's `merge_rubric_guided` insight; avoids the v3 Frankenstein failure.
-- **Verdict gate** — bar-raiser output is structured (`accept|reject` + `rigor_score` + `rewrite_mandates[]`). Reject → fix-implementers dispatched with the mandates → re-review. Bar to accept ≈ rigor 4/5. Loop ≤ N (default 3).
+- **Verdict gate** — bar-raiser output is structured (`accept|reject` + `rigor_score` + `rewrite_mandates[]`, each mandate tagged `severity: minor|major`). Reject → fix-implementers dispatched with the mandates → re-review. Bar to accept ≈ rigor 4/5. Loop ≤ N (default 3). The `severity` tags drive `vibe-coding`'s severity-gated finish (§3.6).
 
 ---
 
@@ -267,10 +283,11 @@ The per-tier reference playbooks are authored once and executed by **either** en
 - **Stage 0 — Skeleton:** repo + `plugin.json` + `marketplace.json`; installs as an empty, valid plugin.
 - **Stage 1 — Spine:** `team-dev-effort` command + state resolution + banner + `off` and `self-eval` end-to-end (no workflows needed).
 - **Stage 2 — experts-eval:** registry + plan/build checkpoints + always-on reviewers + rubric synthesis via **subagent dispatch**; then add `workflows/plan-review.js` + `workflows/build-review.js`.
-- **Stage 3 — bar-raiser-eval:** `bar-raiser` agent + verdict gate + rewrite-mandate loop (subagent path); then add `workflows/bar-raiser-gate.js`.
-- **Stage 4 — debate:** `debater`/`judge` agents + debate plan phase (subagent path); then add `workflows/debate.js`.
-- **Stage 5 — specialized reviewers:** `security`, `cicd`, `iac-change`, `test-coverage`, perspective lenses + registry wiring + change-type detection.
-- **Stage 6 — OSS polish:** README (incl. the v2.1.154+ requirement + fallback note), LICENSE, CONTRIBUTING, `adding-your-own-reviewer.md`, examples.
+- **Stage 3 — bar-raiser-eval:** `bar-raiser` agent (verdict with `severity` tags) + verdict gate + rewrite-mandate loop (subagent path); then add `workflows/bar-raiser-gate.js`.
+- **Stage 4 — vibe-coding:** autonomous posture over the Stage-3 pipeline — severity-gated finish (`shipped`/`blocked`), PR-on-success, skill-side escalation on a major blocker; ships `workflows/vibe.js`. *(Depends on Stage 3.)*
+- **Stage 5 — debate:** `debater`/`judge` agents + debate plan phase (subagent path); then add `workflows/debate.js`.
+- **Stage 6 — specialized reviewers:** `security`, `cicd`, `iac-change`, `test-coverage`, perspective lenses + registry wiring + change-type detection.
+- **Stage 7 — OSS polish:** README (incl. the v2.1.154+ requirement + fallback note), LICENSE, CONTRIBUTING, `adding-your-own-reviewer.md`, examples.
 
 Each stage is independently testable (install + exercise the new tier/agent on both engines where applicable).
 
@@ -281,3 +298,4 @@ Each stage is independently testable (install + exercise the new tier/agent on b
 - Each tier demonstrably changes evaluation behavior on a sample change (self-check → expert panel → blocking bar-raiser); `debate` produces a judged plan.
 - Adding a new reviewer requires only a new agent file + one registry row (verified with a toy reviewer).
 - No cross-model dependency; runs entirely on the session model with subagents.
+- `vibe-coding` runs a sample task end-to-end with **no human input**, opens a PR on success, and **stops + asks** when a *major* concern remains unresolved (minor concerns ship with notes).
