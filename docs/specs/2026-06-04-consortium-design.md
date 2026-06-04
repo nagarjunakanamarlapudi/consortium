@@ -27,6 +27,7 @@
 - **Max-parallel implementation** via subagents as a constant (not a knob).
 - A **pluggable reviewer registry**: add a reviewer = add an agent file + one registry row; rows may reference *any* installed agent (Consortium's own or another plugin's).
 - A strong, **general starter reviewer roster** (generalized from Aadhaa + new), with the Aadhaa stack-specific skills documented as extension *examples*.
+- **Hybrid orchestration:** deterministic phases run as bundled **dynamic-workflow** scripts (Claude Code v2.1.154+) when available, with a **plain-subagent fallback** so the plugin works everywhere and stays deterministic where it can.
 
 ### Non-goals (v1)
 - **Cross-model Python bridge.** Decided: subagents on the session model only. True cross-model diversity (calling Gemini/GPT/etc. via the `llm-consortium` engine) is out of scope; "diverse review" is realized as **diverse-persona** reviewers on one model.
@@ -105,6 +106,11 @@ consortium/
 │   ├── test-coverage-reviewer.md
 │   ├── debater.md
 │   └── judge.md
+├── workflows/                       # bundled dynamic-workflow scripts (skill-invoked via the Workflow tool; NOT a first-class plugin component)
+│   ├── plan-review.js               # plan checkpoint fan-out
+│   ├── build-review.js              # spec-gate → panel + lenses → fix loop
+│   ├── bar-raiser-gate.js           # verdict loop (≤N rounds)
+│   └── debate.js                    # debaters → judge → plan
 ├── hooks/
 │   └── hooks.json                   # SessionStart: establish session id + banner reminder
 ├── docs/
@@ -166,7 +172,16 @@ Once installed, everything is namespaced: skill `consortium:team-dev-workflow`, 
 
 ## 5. Orchestrator mechanics
 
-`team-dev-workflow/SKILL.md` is the playbook the main agent follows. On any build/refactor/ship request:
+### 5.0 Execution model — hybrid (workflow preferred, subagent fallback)
+The **skill is the conductor**: it resolves the tier, prints the banner, runs the interactive checkpoints (plan/mock approval), and decides when to ship. The **deterministic fan-out / verify / loop phases** run as **bundled dynamic-workflow scripts** (the Workflow tool) when available, and as **plain subagent dispatch (the Agent tool)** as a portable fallback when not.
+
+- The **per-tier reference playbooks** (`references/*.md`) are the single source of truth for *what* each phase does; the workflow script and the fallback both implement the same playbook.
+- **Workflows are autonomous** — they cannot pause for user input — so every phase that needs sign-off is its **own** workflow, **chained across turns** by the skill. Interactivity never lives inside a workflow.
+- Workflow scripts call our agents as typed subagents — `agent(prompt, { agentType: "consortium:bar-raiser", schema })` — yielding **schema-validated** verdicts/findings (no free-text parsing).
+- **Packaging reality:** dynamic workflows are *not* a first-class plugin component (no auto-registered `workflows/`). We bundle the scripts and the skill invokes them via the Workflow tool with `scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/<file>.js"` and `args`. Requires Claude Code **v2.1.154+** (research preview); the subagent fallback covers older or disabled setups (no runtime detection exists, so the skill offers the fallback whenever a workflow call isn't possible).
+- **Script constraints:** scripts orchestrate only (no direct FS/shell — agents do all I/O); avoid `Date.now()` / `Math.random()` / argless `new Date()` (they throw — pass timestamps via `args`, vary by index); respect the ≤16-concurrent and 1000-agent caps; reference bundled files only via `${CLAUDE_PLUGIN_ROOT}` (no `../`).
+
+On any build/refactor/ship request the skill runs:
 
 0. **Resolve tier** → print banner. If `off`, announce and stand down (other skills still apply).
 1. **Plan** (grounded: read repo, `CLAUDE.md`, conventions). Decompose into **disjoint-file waves** so build can parallelize safely.
@@ -241,19 +256,23 @@ Max parallelism is the default, but bounded by a **safe per-wave cap** (default 
 1. **Session-override scoping** — confirm the exact `SessionStart` hook capability for surfacing a stable session id to subsequent Bash calls; fallback to `settings.local.json` / project-scoped override if clean isolation isn't available.
 2. **Reuse vs. ship** — decide per-agent whether to ship our own (`type-design`, `silent-failure`, `test-coverage`, `comment` reviewers) or reference `pr-review-toolkit`'s via the registry.
 3. **Marketplace naming** — keep `consortium@consortium` or introduce a distinct marketplace name.
+4. **Workflow invocation specifics** — validate in practice that the skill can run a plugin-bundled script via `Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/…", args })`, and confirm the exact `agentType` namespacing for plugin agents inside scripts (`consortium:bar-raiser` vs bare). Both are engine-level and under-documented in the research preview.
+5. **Workflow availability** — research preview, v2.1.154+, can be disabled, no runtime detection. The **subagent fallback is the contract** that keeps the plugin working everywhere; the CC-version requirement is documented in the README and the skill.
 
 ---
 
 ## 11. Staged build plan (seeds the implementation plan)
-- **Stage 0 — Skeleton:** repo + `plugin.json` + `marketplace.json`; installs as an empty, valid plugin.
-- **Stage 1 — Spine:** `team-dev-effort` command + state resolution + banner + `off` and `self-eval` modes end-to-end.
-- **Stage 2 — experts-eval:** registry + plan/build checkpoints + always-on reviewers (spec-clarity, domain-conventions, spec-compliance, code-quality) + rubric synthesis.
-- **Stage 3 — bar-raiser-eval:** `bar-raiser` agent + verdict gate + rewrite-mandate loop.
-- **Stage 4 — debate:** `debater`/`judge` agents + debate plan phase.
-- **Stage 5 — specialized reviewers:** `security`, `cicd`, `iac-change`, `test-coverage` + registry wiring + change-type detection.
-- **Stage 6 — OSS polish:** README, LICENSE, CONTRIBUTING, `adding-your-own-reviewer.md`, examples.
+The per-tier reference playbooks are authored once and executed by **either** engine. Each orchestration tier is built **subagent-fallback-first** (works everywhere), then its **bundled workflow script** is added as the deterministic upgrade.
 
-Each stage is independently testable (install + exercise the new tier/agent).
+- **Stage 0 — Skeleton:** repo + `plugin.json` + `marketplace.json`; installs as an empty, valid plugin.
+- **Stage 1 — Spine:** `team-dev-effort` command + state resolution + banner + `off` and `self-eval` end-to-end (no workflows needed).
+- **Stage 2 — experts-eval:** registry + plan/build checkpoints + always-on reviewers + rubric synthesis via **subagent dispatch**; then add `workflows/plan-review.js` + `workflows/build-review.js`.
+- **Stage 3 — bar-raiser-eval:** `bar-raiser` agent + verdict gate + rewrite-mandate loop (subagent path); then add `workflows/bar-raiser-gate.js`.
+- **Stage 4 — debate:** `debater`/`judge` agents + debate plan phase (subagent path); then add `workflows/debate.js`.
+- **Stage 5 — specialized reviewers:** `security`, `cicd`, `iac-change`, `test-coverage`, perspective lenses + registry wiring + change-type detection.
+- **Stage 6 — OSS polish:** README (incl. the v2.1.154+ requirement + fallback note), LICENSE, CONTRIBUTING, `adding-your-own-reviewer.md`, examples.
+
+Each stage is independently testable (install + exercise the new tier/agent on both engines where applicable).
 
 ---
 
