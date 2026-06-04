@@ -196,8 +196,11 @@ Always-on (at `experts-eval`+): `spec-clarity-reviewer` (plan), `domain-conventi
 | `cicd-reviewer` | build | CI/CD pipeline files change | NEW (fills the gap) |
 | `iac-change-reviewer` | build | infra files (TF/CDK/Pulumi/CFN) | Aadhaa `cdk-change-reviewer` → generalized |
 | `test-coverage-reviewer` | build | logic/behavior changes | new (or reuse pr-review-toolkit) |
+| perspective reviewers (type-design · silent-failure · simplicity · comments) | build | by change-type | reuse `pr-review-toolkit` or ship lean versions |
 | `bar-raiser` | plan + build (gate) | tier = `bar-raiser-eval` | study v4b + Amazon |
 | `debater` ×N · `judge` | plan | mode = `debate` | study v8 |
+
+> The **panel** (study v5) is the domain specialists above (security, cicd, iac, …). The **diverse lenses** (study v2b blind-spot coverage) are the *perspective reviewers* row — several different lenses on the *same* diff. `experts-eval` runs both, scaled to the change; shipped lean or reused per §10.2.
 
 ### 5.3 Synthesis & verdict (shared building blocks)
 - **Rubric-guided synthesis** — when multiple reviewers return findings, the orchestrator dedups and reconciles **dimension-by-dimension** (security, correctness, maintainability, …), not naive concatenation. Reimplements the study's `merge_rubric_guided` insight; avoids the v3 Frankenstein failure.
@@ -255,7 +258,7 @@ Each stage is independently testable (install + exercise the new tier/agent).
 ---
 
 ## 12. Success criteria
-- `\/plugin install consortium@consortium` works on a clean machine; `\/consortium:team-dev-effort` shows/sets the tier; banner reflects the effective tier and source.
+- `/plugin install consortium@consortium` works on a clean machine; `/consortium:team-dev-effort` shows/sets the tier; banner reflects the effective tier and source.
 - Each tier demonstrably changes evaluation behavior on a sample change (self-check → expert panel → blocking bar-raiser); `debate` produces a judged plan.
 - Adding a new reviewer requires only a new agent file + one registry row (verified with a toy reviewer).
 - No cross-model dependency; runs entirely on the session model with subagents.
