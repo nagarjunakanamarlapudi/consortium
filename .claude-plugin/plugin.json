@@ -1,0 +1,9 @@
+{
+  "name": "consortium",
+  "displayName": "Consortium",
+  "description": "Team-dev workflow with selectable evaluation tiers (self-eval → experts-eval → bar-raiser-eval), plus debate and autonomous vibe-coding modes — multi-agent review & planning grounded in your repo.",
+  "version": "0.1.0",
+  "author": { "name": "Nagarjuna" },
+  "license": "MIT",
+  "keywords": ["code-review", "multi-agent", "workflow", "consortium", "bar-raiser", "subagents"]
+}

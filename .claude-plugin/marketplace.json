@@ -1,0 +1,7 @@
+{
+  "name": "consortium",
+  "owner": { "name": "Nagarjuna" },
+  "plugins": [
+    { "name": "consortium", "source": ".", "description": "Team-dev workflow + evaluation-tier consortiums." }
+  ]
+}
