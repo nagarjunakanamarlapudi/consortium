@@ -13,9 +13,11 @@ Resolve the tier:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/effort.sh" --resolve
 ```
 
-Take the printed value as `TIER`, then print this one-line banner before doing any work:
+Take the printed value as `TIER`, then **print the banner as a single Markdown blockquote line** before doing any work. The leading `> ` makes Claude Code render it **dimmed/muted** so it stays unobtrusive. Emit exactly this shape (one line, starting with `> `):
 
-`🎚️ Consortium: <TIER> · <summary> — change: /consortium:team-dev-effort off|self-eval|experts-eval|bar-raiser-eval|debate|vibe-coding`
+```
+> 🎚️ Consortium: <TIER> · <summary> — change: /consortium:team-dev-effort off|self-eval|experts-eval|bar-raiser-eval|debate|vibe-coding
+```
 
 Use the matching `<summary>`:
 - `off` — workflow off; plain Claude

@@ -182,9 +182,9 @@ Once installed, everything is namespaced: skill `consortium:team-dev-workflow`, 
   - `team-dev-effort` — show effective tier + its source.
   - `team-dev-effort <tier>` — set session override.
   - `team-dev-effort <tier> --global` — write the global default into `~/.claude/settings.json`.
-- **Banner** (printed by the orchestrator each engagement; load-bearing — its absence signals the workflow is not active):
+- **Banner** (printed by the orchestrator each engagement; load-bearing — its absence signals the workflow is not active). Printed as a **dimmed Markdown blockquote** so it stays unobtrusive:
   ```
-  🎚️ Consortium: experts-eval (session) · expert panel reviews plan + diff (advisory) — change: /consortium:team-dev-effort off|self-eval|experts-eval|bar-raiser-eval|debate|vibe-coding
+  > 🎚️ Consortium: experts-eval (session) · expert panel reviews plan + diff (advisory) — change: /consortium:team-dev-effort off|self-eval|experts-eval|bar-raiser-eval|debate|vibe-coding
   ```
 
 ---
