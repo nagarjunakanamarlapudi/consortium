@@ -23,7 +23,7 @@ Use the matching `<summary>`:
 - `experts-eval` — plan + diff reviewed by expert subagents (advisory)
 - `bar-raiser-eval` — experts + a blocking bar-raiser (verdict-gated, ≤N rounds)
 - `debate` — rival approaches → judge (not in this build; running experts-eval)
-- `vibe-coding` — autonomous bar-raiser run (not in this build; running experts-eval)
+- `vibe-coding` — autonomous: bar-raiser quality, no gates, opens a PR
 
 The banner is load-bearing: if you didn't print it, you didn't run this skill.
 
@@ -35,7 +35,7 @@ The banner is load-bearing: if you didn't print it, you didn't run this skill.
 - `experts-eval` → follow [`references/experts-eval.md`](references/experts-eval.md).
 - `bar-raiser-eval` → follow [`references/bar-raiser-eval.md`](references/bar-raiser-eval.md).
 - `debate` → say "debate isn't implemented in this build yet — running experts-eval", then follow [`references/experts-eval.md`](references/experts-eval.md).
-- `vibe-coding` → say "vibe-coding isn't implemented in this build yet — running bar-raiser-eval (but I'll still ask before building)", then follow [`references/bar-raiser-eval.md`](references/bar-raiser-eval.md).
+- `vibe-coding` → follow [`references/vibe-coding.md`](references/vibe-coding.md). (Autonomous — no plan-approval gate; see that playbook.)
 
 ## Human plan-approval gate (every tier except `vibe-coding`)
 
