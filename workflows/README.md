@@ -9,6 +9,7 @@ Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/<name>.js", args: { ... 
 Each script is the **workflow-preferred** path for a checkpoint; the matching steps in the per-tier playbooks are the **subagent fallback** for when the Workflow feature (Claude Code v2.1.154+) is unavailable or disabled.
 
 ## Conventions
+- **Pass real content in `args`** — e.g. the full plan/diff text as a string. The script and its agents see *only* what you put in `args`; never leave it empty or send a summary (the runtime can't see your conversation).
 - Scripts **orchestrate only** — no filesystem/shell. The dispatched agents (`consortium:*`) do all reading/writing.
 - Agents are called by **namespaced type**: `agent(prompt, { agentType: 'consortium:<agent>', schema })`.
 - Avoid `Date.now()` / `Math.random()` (they throw in the workflow runtime); pass anything time-varying via `args`.

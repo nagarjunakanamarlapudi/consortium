@@ -10,9 +10,9 @@ Read the relevant files and `CLAUDE.md`/conventions. Write a concrete plan: file
 ## 2. Plan checkpoint — review the plan (run the workflow)
 **Run the bundled plan-review workflow.** This is the default for `experts-eval` and above — *not* optional, and yes even for a small fan-out (the deterministic engine + schema-validated findings are the whole point of these tiers):
 
-`Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/plan-review.js", args: { plan } })`
+`Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/plan-review.js", args: { plan: "…the FULL plan text you drafted…" } })`
 
-It fans out the plan reviewers and returns their structured findings.
+**Put your entire drafted plan into `args.plan` as a string** — the reviewers see *only* what you pass, so never leave it empty or send a summary. It fans out the plan reviewers and returns their structured findings.
 
 **Fallback — ONLY if the Workflow tool genuinely isn't available** (older Claude Code, or the call errors): dispatch the plan reviewers yourself, in parallel, in one message:
 - `consortium:spec-clarity-reviewer` — is the plan concrete / complete / unambiguous?
