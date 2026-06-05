@@ -8,7 +8,9 @@ Same as experts-eval (run `plan-review.js`, revise), **then dispatch `consortium
 ## Build (one workflow, bar-raiser enabled)
 Run the build workflow with `barRaiser: true`:
 
-`Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/build.js", args: { plan: "…the approved plan…", barRaiser: true } })`
+`Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/build.js", args: { plan: "…the approved plan…", barRaiser: true, extraReviewers: [ … ] } })`
+
+(Set `extraReviewers` by change-type, same as experts-eval §3.)
 
 It runs **implement → spec-compliance gate → advisory experts → bar-raiser verdict → fix loop** (≤N rounds, applying the bar-raiser's rewrite mandates each round), returning `{ gate, reviews, barRaiser, rounds }`.
 

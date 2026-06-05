@@ -10,6 +10,7 @@ if (typeof a === 'string') { try { a = JSON.parse(a) } catch (e) { a = {} } }
 const plan = (a && a.plan) || ''
 const chunks = a && Array.isArray(a.chunks) ? a.chunks : null // optional disjoint-file task specs
 const barRaiser = !!(a && a.barRaiser)
+const extraReviewers = a && Array.isArray(a.extraReviewers) ? a.extraReviewers : [] // conditional reviewers (by change-type), chosen by the skill
 const maxRounds = (a && a.maxRounds) || 3
 if (!plan && !chunks) log('No args.plan/chunks provided; implementer relies on repo context only.')
 
@@ -39,11 +40,16 @@ while (true) {
     { agentType: 'consortium:spec-compliance-reviewer', label: 'gate:r' + round, phase: 'Review', schema: GATE })
 
   if (gate.verdict === 'COMPLIANT') {
-    reviews = await parallel([
+    const reviewerTasks = [
       () => agent('Run `git diff`; review the change for code quality. Return findings.', { agentType: 'consortium:code-quality-reviewer', label: 'cq:r' + round, phase: 'Review', schema: FINDINGS }),
       () => agent('Run `git diff`; review the change for repo conventions & reuse. Return findings.', { agentType: 'consortium:domain-conventions-reviewer', label: 'dc:r' + round, phase: 'Review', schema: FINDINGS }),
       () => agent('Simplifier (quality only, no bug-hunting): run `git diff`; suggest reuse / simplification / efficiency / altitude cleanups that cut length and vagueness without changing behavior. Tag meaningful simplifications "important". Return findings.', { agentType: 'consortium:simplifier', label: 'simp:r' + round, phase: 'Review', schema: FINDINGS }),
-    ])
+    ]
+    // Conditional reviewers (by change-type) the skill passed in — dispatched alongside the always-on experts.
+    for (const t of extraReviewers) {
+      reviewerTasks.push(() => agent('Run `git diff`; review the change for your specialty. Return findings.', { agentType: t, label: String(t).replace('consortium:', '') + ':r' + round, phase: 'Review', schema: FINDINGS }))
+    }
+    reviews = await parallel(reviewerTasks)
     verdict = barRaiser
       ? await agent('Bar-raiser: run `git diff`; review the change against a high bar. Return your verdict.', { agentType: 'consortium:bar-raiser', label: 'br:r' + round, phase: 'Review', schema: VERDICT })
       : null

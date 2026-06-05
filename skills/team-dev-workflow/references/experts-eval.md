@@ -19,7 +19,7 @@ Pass `args` as a real JSON object containing the entire plan; it fans out the pl
 
 `Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/build.js", args: { plan: "…the approved plan…" } })`
 
-For multi-file work, also pass `chunks` — disjoint-file task specs `[{ files: ["a"], instructions: "…" }, …]` — for parallel implementation. It runs **implement → spec-compliance gate → advisory experts (`code-quality`, `domain-conventions`) → fix loop** and returns `{ gate, reviews, barRaiser, rounds }`.
+For multi-file work, also pass `chunks` — disjoint-file task specs `[{ files: ["a"], instructions: "…" }, …]` — for parallel implementation. **Change-type reviewers:** match the plan's affected files/areas against the registry's **conditional** triggers (auth/crypto/secrets → `security-reviewer`; CI/CD files → `cicd-reviewer`; IaC → `iac-change-reviewer`; logic/behavior → `test-coverage-reviewer`) and pass the matching **installed** ones as `args.extraReviewers` (e.g. `["consortium:cicd-reviewer"]`). It runs **implement → spec-compliance gate → advisory experts (`code-quality`, `domain-conventions`, `simplifier`) + any `extraReviewers` → fix loop** and returns `{ gate, reviews, barRaiser, rounds }`.
 
 **Do not write the code yourself** — the workflow's implementer agents do (so the build is deterministic + parallel). They work from the approved plan + the repo, so the plan (now reviewed and approved) must be self-contained.
 

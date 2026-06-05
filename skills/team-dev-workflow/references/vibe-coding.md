@@ -12,7 +12,7 @@
 1. Plan (grounded); for multi-file work, decompose into disjoint-file `chunks`.
 2. Run the build workflow with the bar-raiser, **no gate before it**:
 
-   `Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/build.js", args: { plan: "…", chunks: [ … ], barRaiser: true } })`
+   `Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/build.js", args: { plan: "…", chunks: [ … ], barRaiser: true, extraReviewers: [ … ] } })`  (set `extraReviewers` by change-type)
 
    It implements (parallel) → spec-compliance gate → advisory experts → **bar-raiser verdict** → fix loop (≤N rounds), returning `{ gate, reviews, barRaiser, rounds }`.
 

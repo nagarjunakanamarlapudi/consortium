@@ -20,7 +20,7 @@ Single source of truth for which reviewers run, at which checkpoint, in which mo
 
 ## Conditional (by change-type)
 
-*(These reviewers land in Stage 5. Until a reviewer's agent is installed, the orchestrator **skips its row** — it does not substitute another agent.)*
+*(Now available. The skill matches the change against these triggers and passes the matching **installed** reviewers to `build.js` as `args.extraReviewers`; it skips any whose agent isn't installed — never substituting another agent.)*
 
 | trigger (changed paths / keywords) | reviewer | checkpoint | mode |
 |---|---|---|---|
