@@ -2,7 +2,6 @@
   "name": "consortium",
   "displayName": "Consortium",
   "description": "Team-dev workflow with selectable evaluation tiers (self-eval → experts-eval → bar-raiser-eval), plus debate and autonomous vibe-coding modes — multi-agent review & planning grounded in your repo.",
-  "version": "0.1.0",
   "author": { "name": "Nagarjuna Kanamarlapudi" },
   "license": "MIT",
   "homepage": "https://github.com/nagarjunakanamarlapudi/consortium",
