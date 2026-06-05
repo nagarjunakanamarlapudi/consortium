@@ -1,6 +1,6 @@
 ---
 name: team-dev-workflow
-description: Use whenever the user asks to build, add, implement, change, refactor, design, fix, or ship something in this repo. Reads the active Consortium evaluation tier (off|self-eval|experts-eval|bar-raiser-eval|debate|vibe-coding) and runs the matching amount of multi-agent review, announcing it first. Trigger phrases include "build X", "add Y", "implement Z", "refactor", "fix this", "let's ship". Skip only for trivial one-line mechanical edits, pure read-only investigation (use the Explore agent), or a complete patch the user pasted to apply verbatim.
+description: Use whenever the user asks to build, add, implement, change, refactor, design, fix, or ship something in this repo. Reads the active Consortium evaluation tier (off|self-eval|experts-eval|bar-raiser-eval|debate|vibe-coding) and runs the matching amount of multi-agent review, announcing it first. Trigger phrases include "build X", "add Y", "implement Z", "refactor", "fix this", "let's ship". Skip for trivial mechanical edits (a rename, formatting, a docs/comment tweak, a version bump, or a one-liner with no behavior change), pure read-only investigation (use the Explore agent), or a complete patch the user pasted to apply verbatim.
 ---
 
 # Consortium — team-dev workflow
@@ -29,14 +29,22 @@ The banner is load-bearing: if you didn't print it, you didn't run this skill.
 
 ## Step 1 — Route by tier
 
+- **Trivial change first (any tier):** if the change is genuinely trivial — a variable rename, formatting, a docs/comment edit, a version bump, or a one-liner with **no behavior change** — just make the edit directly and stop. No plan, no reviewers, no gate, no review loop. A tier is a **ceiling, not a floor**. (Even `vibe-coding` just does trivial work directly.)
 - `off` → say "workflow off — proceeding as plain Claude", then STOP using this skill and handle the request normally (other skills still apply).
 - `self-eval` → follow [`references/self-eval.md`](references/self-eval.md).
 - `experts-eval` → follow [`references/experts-eval.md`](references/experts-eval.md).
 - `bar-raiser-eval` | `debate` | `vibe-coding` → say "‹TIER› isn't implemented in this build yet — running experts-eval", then follow [`references/experts-eval.md`](references/experts-eval.md).
 
+## Human plan-approval gate (every tier except `vibe-coding`)
+
+Before writing any code, **present the plan and wait for the user to approve it** (they may edit it first). Do not start building until they do. At `experts-eval` and above, the plan reviewers run first, so you present an *already-vetted* plan. This is the **human** gate — distinct from the bar-raiser's automated *quality* gate.
+
+- **Trivial changes never reach this gate** — they short-circuit the whole workflow (see *Trivial change first* in Step 1).
+- **`vibe-coding` never gates** — it runs autonomously; its only human touchpoint is at the very end if a *major* concern is unresolved.
+
 ## Posture (applies at every tier)
 
-- A tier is a **ceiling, not a quota** — a trivial edit stays trivial even at a high tier.
+- A tier is a **ceiling, not a quota — and not a floor**: scale the process to the change, and skip it entirely for trivial edits (Step 1).
 - Stay **grounded**: read the real files and `CLAUDE.md`/conventions before changing anything; cite `file:line` when you reason about code.
 - **Be terse.** Don't re-print code that's already shown in the diff/edits — **no full-file dumps** — and skip step-by-step narration. Report the outcome plus the review findings that *matter* (blocking/important); concise by default, the user can ask for more.
 - **Escalate, don't silently inflate**: if the task turns out much larger or riskier than the tier assumes, say so and suggest dialing the tier up — don't quietly do more process than was asked.

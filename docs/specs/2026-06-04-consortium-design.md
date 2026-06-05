@@ -58,6 +58,7 @@ Plan  →  ⟦plan checkpoint⟧  →  Build (always max-parallel subagents)  �
 - Tiers 1–4 (`off`…`bar-raiser-eval`) are a **cumulative ladder** — each a superset of the one above. One mental dial.
 - `debate` is a selectable sibling — the **one generative mode**, whose *plan phase* is itself a consortium (LLM-Consortium v8); its build checkpoint runs at `experts-eval` level.
 - `vibe-coding` is a selectable sibling — the **autonomous mode**: `bar-raiser-eval` with every human checkpoint removed (see §3.6).
+- Every tier **except `vibe-coding`** also has a **human plan-approval gate** (see §3.7). "Advisory" above refers to the *reviewers* not hard-blocking — **not** to skipping *your* approval of the plan.
 
 ### 3.2 Two checkpoints
 Evaluation is not a single stage — it happens at **plan** (cheapest place to catch a wrong approach) and at **build** (the diff). The tier staffs both.
@@ -85,6 +86,9 @@ A single authoritative gatekeeper (Amazon metaphor + study v4b), **distinct from
 Because workflows can't ask for input, the *workflow* returns `{ outcome: "shipped" | "blocked", pr?, concerns[], report }` autonomously (branching on the bar-raiser's `severity` tags); the **skill** handles the escalation only when `outcome === "blocked"`. So `vibe-coding` is a single end-to-end workflow run with at most one human touchpoint *afterward*.
 
 **Safety:** fresh branch only; permission prompts still gate destructive ops; respects budget/concurrency caps; the banner warns it runs hands-off to completion.
+
+### 3.7 Human plan-approval gate
+Every tier **except `vibe-coding`** presents the plan and **waits for the user's approval before any code is written** (the user may edit it first). At `experts-eval`+ the plan reviewers vet the plan first, so the user approves an *already-vetted* plan. This is the **human** gate — distinct from the bar-raiser's automated *quality* gate (§3.3). **Trivial edits skip the workflow entirely at every tier** — a rename, formatting, a docs/comment edit, a version bump, or a no-behavior-change one-liner is just made directly (no plan / reviewers / gate / loop); a tier is a *ceiling, not a floor*. `vibe-coding` never gates: it's autonomous, with its sole human touchpoint at the end on a major unresolved concern (§3.6). The gate is run by the *skill* (workflows can't pause for input), so it always sits at a seam between phases — never inside a workflow.
 
 ---
 

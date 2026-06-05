@@ -12,7 +12,9 @@ Dispatch the always-on plan reviewers from the registry in parallel, in a single
 - `consortium:spec-clarity-reviewer` — is the plan concrete / complete / unambiguous?
 - `consortium:domain-conventions-reviewer` — does it fit repo conventions & reuse?
 
-Scale to the change (posture principle): a tiny change may warrant only one reviewer. **Synthesize** their findings (see §5) and revise the plan to address blocking/important items before building.
+Scale to the change (posture principle): a tiny change may warrant only one reviewer. **Synthesize** their findings (see §5) and revise the plan to address blocking/important items.
+
+**Then present the vetted plan to the user and WAIT for their approval before any code is written** — they may edit it first. (`vibe-coding` is the only mode that never gates; trivial changes never reach experts-eval — they're handled directly upstream.)
 
 ## 3. Build
 Implement the (revised) plan. Independent files may be built by parallel implementer subagents — **disjoint files only** (never two agents on one file).

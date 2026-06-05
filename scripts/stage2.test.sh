@@ -33,5 +33,11 @@ if [ -f "$pb" ] && grep -q "reviewer-registry.md" "$pb"; then ok "experts-eval p
 sk="$ROOT/skills/team-dev-workflow/SKILL.md"
 if grep -q "references/experts-eval.md" "$sk"; then ok "skill links experts-eval playbook"; else fail "skill does not link experts-eval playbook"; fi
 
+# 5. SKILL documents the human plan-approval gate
+if grep -q "Human plan-approval gate" "$sk"; then ok "skill documents the human plan-approval gate"; else fail "skill missing the human plan-approval gate"; fi
+
+# 6. SKILL documents the triviality short-circuit (ceiling, not a floor)
+if grep -q "ceiling, not a floor" "$sk"; then ok "skill documents the triviality short-circuit"; else fail "skill missing the triviality short-circuit"; fi
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
