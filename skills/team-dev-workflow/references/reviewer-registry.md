@@ -10,6 +10,7 @@ Single source of truth for which reviewers run, at which checkpoint, in which mo
 | `consortium:domain-conventions-reviewer` | plan + build | advisory | does it respect repo conventions & reuse? |
 | `consortium:spec-compliance-reviewer` | build | **gate** | does the diff match the agreed plan? |
 | `consortium:code-quality-reviewer` | build | advisory | bugs, error handling, naming, simplicity |
+| `consortium:simplifier` | build | advisory | reuse / simplify / cut length & vagueness — quality only (the `/simplify` pass) |
 
 ## Gate (`bar-raiser-eval` only)
 

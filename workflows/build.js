@@ -42,6 +42,7 @@ while (true) {
     reviews = await parallel([
       () => agent('Run `git diff`; review the change for code quality. Return findings.', { agentType: 'consortium:code-quality-reviewer', label: 'cq:r' + round, phase: 'Review', schema: FINDINGS }),
       () => agent('Run `git diff`; review the change for repo conventions & reuse. Return findings.', { agentType: 'consortium:domain-conventions-reviewer', label: 'dc:r' + round, phase: 'Review', schema: FINDINGS }),
+      () => agent('Simplifier (quality only, no bug-hunting): run `git diff`; suggest reuse / simplification / efficiency / altitude cleanups that cut length and vagueness without changing behavior. Tag meaningful simplifications "important". Return findings.', { agentType: 'consortium:simplifier', label: 'simp:r' + round, phase: 'Review', schema: FINDINGS }),
     ])
     verdict = barRaiser
       ? await agent('Bar-raiser: run `git diff`; review the change against a high bar. Return your verdict.', { agentType: 'consortium:bar-raiser', label: 'br:r' + round, phase: 'Review', schema: VERDICT })

@@ -37,5 +37,8 @@ if [ -f "$ia" ] && grep -q "^name: implementer$" "$ia"; then ok "implementer age
 # 8. build + vibe wired to build.js
 if grep -q "build.js" "$pb" && grep -q "build.js" "$ROOT/skills/team-dev-workflow/references/bar-raiser-eval.md" && grep -q "build.js" "$ROOT/skills/team-dev-workflow/references/vibe-coding.md"; then ok "build + vibe wired to build.js"; else fail "build/vibe not wired to build.js"; fi
 
+# 9. simplifier agent present + wired into build.js (the /simplify pass)
+if [ -f "$ROOT/agents/simplifier.md" ] && grep -q "^name: simplifier$" "$ROOT/agents/simplifier.md" && grep -q "consortium:simplifier" "$js2"; then ok "simplifier present + wired into build.js"; else fail "simplifier missing/not wired"; fi
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]

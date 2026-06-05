@@ -119,6 +119,7 @@ consortium/
 │   ├── domain-conventions-reviewer.md
 │   ├── spec-compliance-reviewer.md
 │   ├── code-quality-reviewer.md
+│   ├── simplifier.md                # /simplify pass — reuse, simplify, cut length/vagueness
 │   ├── security-reviewer.md
 │   ├── cicd-reviewer.md             # NEW
 │   ├── iac-change-reviewer.md       # generalized from Aadhaa cdk-change-reviewer
@@ -226,6 +227,7 @@ Always-on (at `experts-eval`+): `spec-clarity-reviewer` (plan), `domain-conventi
 | `domain-conventions-reviewer` | plan + build | always (experts+) | Aadhaa `domain-reviewer` → generalized |
 | `spec-compliance-reviewer` | build (gate) | always (experts+) | Aadhaa thorough playbook |
 | `code-quality-reviewer` | build | always (experts+) | study v5 + general |
+| `simplifier` | build | always (experts+) | new — the `/simplify` pass (cut length/vagueness, reuse) |
 | `security-reviewer` | build | authz / crypto / input / secrets | new |
 | `cicd-reviewer` | build | CI/CD pipeline files change | NEW (fills the gap) |
 | `iac-change-reviewer` | build | infra files (TF/CDK/Pulumi/CFN) | Aadhaa `cdk-change-reviewer` → generalized |
