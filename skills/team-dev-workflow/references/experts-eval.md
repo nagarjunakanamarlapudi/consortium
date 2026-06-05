@@ -1,45 +1,32 @@
 # experts-eval playbook
 
-`self-eval` plus real reviewer subagents at both checkpoints. Reviews are **advisory** (they inform; they don't hard-block like the bar-raiser), but the **spec-compliance gate must pass** before quality review. Reviewers are read-only — they report findings; you (the orchestrator) make the fixes.
-
-Consult [`reviewer-registry.md`](reviewer-registry.md) for which reviewers fire.
+`self-eval` plus real reviewer subagents — and the **build and its review run as one deterministic workflow**. Reviews are **advisory** (they inform; they don't hard-block like the bar-raiser), but the spec-compliance gate inside the build workflow must pass. Consult [`reviewer-registry.md`](reviewer-registry.md) for who reviews.
 
 ## 1. Plan (grounded)
-Read the relevant files and `CLAUDE.md`/conventions. Write a concrete plan: files to change, approach, acceptance check; list disjoint-file chunks if it's multi-file.
+Read the relevant files and `CLAUDE.md` / conventions. Write a concrete plan: files to change, approach, acceptance check; for multi-file work, list disjoint-file chunks.
 
-## 2. Plan checkpoint — review the plan (run the workflow)
-**Run the bundled plan-review workflow.** This is the default for `experts-eval` and above — *not* optional, and yes even for a small fan-out (the deterministic engine + schema-validated findings are the whole point of these tiers):
+## 2. Plan checkpoint
+**Run the bundled plan-review workflow** (mandatory):
 
-`Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/plan-review.js", args: { plan: "…the FULL plan text you drafted…" } })`
+`Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/plan-review.js", args: { plan: "…the FULL plan text…" } })`
 
-**Put your entire drafted plan into `args.plan`** — the reviewers see *only* what you pass, so never leave it empty or send a summary. Pass `args` as a **real JSON object** (`{ plan: "…" }`), **not** a JSON-encoded string (the runtime hands `args` to the script verbatim; `args.plan` on a string is `undefined`). It fans out the plan reviewers and returns their structured findings.
+Pass `args` as a real JSON object containing the entire plan; it fans out the plan reviewers and returns structured findings. *(Fallback — only if the Workflow tool is unavailable — dispatch `consortium:spec-clarity-reviewer` + `consortium:domain-conventions-reviewer` yourself, in parallel.)* Revise the plan to address blocking/important findings.
 
-**Fallback — ONLY if the Workflow tool genuinely isn't available** (older Claude Code, or the call errors): dispatch the plan reviewers yourself, in parallel, in one message:
-- `consortium:spec-clarity-reviewer` — is the plan concrete / complete / unambiguous?
-- `consortium:domain-conventions-reviewer` — does it fit repo conventions & reuse?
+**Then the gate:** present the vetted plan for approval via plan mode (`EnterPlanMode` → `ExitPlanMode`) and **write no code until the user approves** (see the gate in SKILL.md).
 
-Scale to the change (posture principle): a tiny change may warrant only one reviewer. **Synthesize** their findings (see §5) and revise the plan to address blocking/important items.
+## 3. Build (one workflow: implement + review + fix)
+**Run the bundled build workflow** (mandatory) — it implements in parallel *and* reviews *and* fixes:
 
-**Then present the vetted plan for approval via plan mode** (`EnterPlanMode` → `ExitPlanMode`) and **write no code until the user approves** — they may edit it first. (See the gate in SKILL.md. `vibe-coding` never gates; trivial changes never reach here.)
+`Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/build.js", args: { plan: "…the approved plan…" } })`
 
-## 3. Build
-Implement the (revised) plan. Independent files may be built by parallel implementer subagents — **disjoint files only** (never two agents on one file).
+For multi-file work, also pass `chunks` — disjoint-file task specs `[{ files: ["a"], instructions: "…" }, …]` — for parallel implementation. It runs **implement → spec-compliance gate → advisory experts (`code-quality`, `domain-conventions`) → fix loop** and returns `{ gate, reviews, barRaiser, rounds }`.
 
-## 4. Build checkpoint
-**a. Spec-compliance gate (must pass first).** Dispatch `consortium:spec-compliance-reviewer` on the diff. If `NOT_COMPLIANT`, fix the gaps and re-run until `COMPLIANT`. Do not start quality review until it passes.
+**Do not write the code yourself** — the workflow's implementer agents do (so the build is deterministic + parallel). They work from the approved plan + the repo, so the plan (now reviewed and approved) must be self-contained.
 
-**b. Quality + conventions (parallel, advisory).** Dispatch in parallel: `consortium:code-quality-reviewer` and `consortium:domain-conventions-reviewer`, plus any conditional reviewers the registry triggers for this change-type **whose agent is actually installed**. If a triggered reviewer isn't installed yet, note it in one line and **skip it — never substitute a different agent in its place**.
+*(Fallback — only if the Workflow tool is unavailable: implement yourself over disjoint files, then run the spec-compliance gate, then `code-quality` + `domain-conventions` in parallel, fixing blocking/important findings in a loop.)*
 
-**c. Synthesize & fix loop.** Synthesize findings (§5). Fix every **blocking** and **important** finding; re-dispatch the affected reviewer(s) to confirm. Minor findings: fix if cheap, else note them. Loop until the gate passes and no blocking/important findings remain.
+## 4. Synthesize & present
+From `build.js`'s return, give the user a **short prioritized summary** — dedup, group by dimension (correctness, conventions, clarity, risk), rank by severity. Not raw reviewer dumps; **no code re-prints** (the diff is the record). If anything blocking/important remained after the workflow's fix loop, surface it.
 
-## 5. Rubric-guided synthesis (how to combine reviewer output)
-Don't just concatenate. Collect all findings, then:
-1. **Dedup** — the same issue from multiple reviewers becomes one item.
-2. **Group by dimension** — correctness, conventions, clarity, risk.
-3. **Rank** — by severity, then confidence.
-4. **Resolve conflicts** — if two reviewers disagree, decide explicitly and say why.
-
-Show the user a short prioritized summary, not raw reviewer dumps.
-
-## 6. Ship
-Run build/tests if present (report honestly). Commit on a branch and open a PR; don't merge unless asked. (Skip the git steps for a non-repo / throwaway, exactly as `self-eval` does.)
+## 5. Ship
+Run build/tests if present (report honestly). Commit on a branch and open a PR; don't merge unless asked. (Skip git for a non-repo / throwaway, like `self-eval`.)

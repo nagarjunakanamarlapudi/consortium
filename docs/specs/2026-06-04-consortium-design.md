@@ -114,6 +114,7 @@ consortium/
 │           └── reviewer-registry.md # change-type → which reviewers fire (pluggable core)
 ├── agents/
 │   ├── bar-raiser.md
+│   ├── implementer.md               # write-capable; used by build.js / vibe-coding
 │   ├── spec-clarity-reviewer.md
 │   ├── domain-conventions-reviewer.md
 │   ├── spec-compliance-reviewer.md
@@ -126,10 +127,8 @@ consortium/
 │   └── judge.md
 ├── workflows/                       # bundled dynamic-workflow scripts (skill-invoked via the Workflow tool; NOT a first-class plugin component)
 │   ├── plan-review.js               # plan checkpoint fan-out
-│   ├── build-review.js              # spec-gate → panel + lenses → fix loop
-│   ├── bar-raiser-gate.js           # verdict loop (≤N rounds)
-│   ├── debate.js                    # debaters → judge → plan
-│   └── vibe.js                      # autonomous end-to-end (bar-raiser posture)
+│   ├── build.js                     # build phase: implement (parallel) + review + fix loop; also vibe's core
+│   └── debate.js                    # debaters → judge → plan
 ├── hooks/
 │   └── hooks.json                   # SessionStart: establish session id + banner reminder
 ├── docs/
@@ -198,7 +197,7 @@ The **skill is the conductor**: it resolves the tier, prints the banner, runs th
 - **Workflows are autonomous** — they cannot pause for user input — so every phase that needs sign-off is its **own** workflow, **chained across turns** by the skill. Interactivity never lives inside a workflow.
 - Workflow scripts call our agents as typed subagents — `agent(prompt, { agentType: "consortium:bar-raiser", schema })` — yielding **schema-validated** verdicts/findings (no free-text parsing).
 - **Packaging reality:** dynamic workflows are *not* a first-class plugin component (no auto-registered `workflows/`). We bundle the scripts and the skill invokes them via the Workflow tool with `scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/<file>.js"` and `args`. Requires Claude Code **v2.1.154+** (research preview); the subagent fallback covers older or disabled setups (no runtime detection exists, so the skill offers the fallback whenever a workflow call isn't possible).
-- **Script constraints:** scripts orchestrate only (no direct FS/shell — agents do all I/O); avoid `Date.now()` / `Math.random()` / argless `new Date()` (they throw — pass timestamps via `args`, vary by index); respect the ≤16-concurrent and 1000-agent caps; reference bundled files only via `${CLAUDE_PLUGIN_ROOT}` (no `../`).
+- **Script constraints:** scripts orchestrate only (no direct FS/shell — agents do all I/O); **`args` arrives as a JSON string, so every script must `JSON.parse` it first** (confirmed by testing); avoid `Date.now()` / `Math.random()` / argless `new Date()` (they throw — pass timestamps via `args`, vary by index); respect the ≤16-concurrent and 1000-agent caps; reference bundled files only via `${CLAUDE_PLUGIN_ROOT}` (no `../`).
 - **`vibe-coding` is the one fully-autonomous mode** — with no interactive seams it's a *single* end-to-end workflow; its only possible human touchpoint (a major unresolved concern) is handled by the skill *after* the run returns `blocked` (§3.6).
 
 On any build/refactor/ship request the skill runs:
