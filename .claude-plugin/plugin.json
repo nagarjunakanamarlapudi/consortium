@@ -5,5 +5,7 @@
   "version": "0.1.0",
   "author": { "name": "Nagarjuna Kanamarlapudi" },
   "license": "MIT",
+  "homepage": "https://github.com/nagarjunakanamarlapudi/consortium",
+  "repository": "https://github.com/nagarjunakanamarlapudi/consortium",
   "keywords": ["code-review", "multi-agent", "workflow", "consortium", "bar-raiser", "subagents"]
 }

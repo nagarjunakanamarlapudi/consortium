@@ -1,6 +1,6 @@
 {
   "name": "consortium",
-  "owner": { "name": "Nagarjuna" },
+  "owner": { "name": "Nagarjuna Kanamarlapudi", "url": "https://github.com/nagarjunakanamarlapudi" },
   "plugins": [
     { "name": "consortium", "source": ".", "description": "Team-dev workflow + evaluation-tier consortiums." }
   ]

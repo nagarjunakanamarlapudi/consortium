@@ -7,7 +7,7 @@ A Claude Code plugin for **team-style development with a tunable evaluation bar*
 ## Install
 
 ```bash
-/plugin marketplace add <owner>/consortium     # or a local path during development
+/plugin marketplace add nagarjunakanamarlapudi/consortium     # or a local path during development
 /plugin install consortium@consortium
 ```
 
