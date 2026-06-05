@@ -26,7 +26,12 @@ const FINDINGS = {
 }
 
 // The plan text is passed in by the skill; agents read the repo themselves for grounding.
-const plan = (args && args.plan) || ''
+// Defensive: if args arrives as a JSON-encoded string (a common mistake), parse it.
+let _args = args
+if (typeof _args === 'string') {
+  try { _args = JSON.parse(_args) } catch (e) { _args = {} }
+}
+const plan = (_args && _args.plan) || ''
 if (!plan) log('No args.plan provided; reviewers will rely on repo context only.')
 
 // Always-on plan reviewers (mirrors references/reviewer-registry.md).

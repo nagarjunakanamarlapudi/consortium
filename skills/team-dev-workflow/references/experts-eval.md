@@ -12,7 +12,7 @@ Read the relevant files and `CLAUDE.md`/conventions. Write a concrete plan: file
 
 `Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/plan-review.js", args: { plan: "…the FULL plan text you drafted…" } })`
 
-**Put your entire drafted plan into `args.plan` as a string** — the reviewers see *only* what you pass, so never leave it empty or send a summary. It fans out the plan reviewers and returns their structured findings.
+**Put your entire drafted plan into `args.plan`** — the reviewers see *only* what you pass, so never leave it empty or send a summary. Pass `args` as a **real JSON object** (`{ plan: "…" }`), **not** a JSON-encoded string (the runtime hands `args` to the script verbatim; `args.plan` on a string is `undefined`). It fans out the plan reviewers and returns their structured findings.
 
 **Fallback — ONLY if the Workflow tool genuinely isn't available** (older Claude Code, or the call errors): dispatch the plan reviewers yourself, in parallel, in one message:
 - `consortium:spec-clarity-reviewer` — is the plan concrete / complete / unambiguous?
