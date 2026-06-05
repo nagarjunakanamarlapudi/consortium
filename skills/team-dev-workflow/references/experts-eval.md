@@ -7,8 +7,12 @@ Consult [`reviewer-registry.md`](reviewer-registry.md) for which reviewers fire.
 ## 1. Plan (grounded)
 Read the relevant files and `CLAUDE.md`/conventions. Write a concrete plan: files to change, approach, acceptance check; list disjoint-file chunks if it's multi-file.
 
-## 2. Plan checkpoint — dispatch plan reviewers in parallel
-Dispatch the always-on plan reviewers from the registry in parallel, in a single message:
+## 2. Plan checkpoint — review the plan
+**Workflow-preferred:** if the Workflow tool is available, run the bundled script —
+`Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/plan-review.js", args: { plan } })` —
+which fans out the plan reviewers and returns structured findings.
+
+**Fallback (no Workflow tool):** dispatch the always-on plan reviewers yourself, in parallel, in a single message:
 - `consortium:spec-clarity-reviewer` — is the plan concrete / complete / unambiguous?
 - `consortium:domain-conventions-reviewer` — does it fit repo conventions & reuse?
 
