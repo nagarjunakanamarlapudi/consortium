@@ -11,6 +11,12 @@ Single source of truth for which reviewers run, at which checkpoint, in which mo
 | `consortium:spec-compliance-reviewer` | build | **gate** | does the diff match the agreed plan? |
 | `consortium:code-quality-reviewer` | build | advisory | bugs, error handling, naming, simplicity |
 
+## Gate (`bar-raiser-eval` only)
+
+| reviewer | checkpoint | mode | focus |
+|---|---|---|---|
+| `consortium:bar-raiser` | plan + build | **gate (verdict, ≤N rounds)** | high-bar adversarial review; rewrite mandates |
+
 ## Conditional (by change-type)
 
 *(These reviewers land in Stage 5. Until a reviewer's agent is installed, the orchestrator **skips its row** — it does not substitute another agent.)*

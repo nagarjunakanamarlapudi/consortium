@@ -21,7 +21,7 @@ Use the matching `<summary>`:
 - `off` — workflow off; plain Claude
 - `self-eval` — plan → build → self-review → PR
 - `experts-eval` — plan + diff reviewed by expert subagents (advisory)
-- `bar-raiser-eval` — blocking bar-raiser (not in this build; running experts-eval)
+- `bar-raiser-eval` — experts + a blocking bar-raiser (verdict-gated, ≤N rounds)
 - `debate` — rival approaches → judge (not in this build; running experts-eval)
 - `vibe-coding` — autonomous bar-raiser run (not in this build; running experts-eval)
 
@@ -33,7 +33,9 @@ The banner is load-bearing: if you didn't print it, you didn't run this skill.
 - `off` → say "workflow off — proceeding as plain Claude", then STOP using this skill and handle the request normally (other skills still apply).
 - `self-eval` → follow [`references/self-eval.md`](references/self-eval.md).
 - `experts-eval` → follow [`references/experts-eval.md`](references/experts-eval.md).
-- `bar-raiser-eval` | `debate` | `vibe-coding` → say "‹TIER› isn't implemented in this build yet — running experts-eval", then follow [`references/experts-eval.md`](references/experts-eval.md).
+- `bar-raiser-eval` → follow [`references/bar-raiser-eval.md`](references/bar-raiser-eval.md).
+- `debate` → say "debate isn't implemented in this build yet — running experts-eval", then follow [`references/experts-eval.md`](references/experts-eval.md).
+- `vibe-coding` → say "vibe-coding isn't implemented in this build yet — running bar-raiser-eval (but I'll still ask before building)", then follow [`references/bar-raiser-eval.md`](references/bar-raiser-eval.md).
 
 ## Human plan-approval gate (every tier except `vibe-coding`)
 
