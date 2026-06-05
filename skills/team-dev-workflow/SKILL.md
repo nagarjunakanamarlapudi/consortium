@@ -38,4 +38,5 @@ The banner is load-bearing: if you didn't print it, you didn't run this skill.
 
 - A tier is a **ceiling, not a quota** — a trivial edit stays trivial even at a high tier.
 - Stay **grounded**: read the real files and `CLAUDE.md`/conventions before changing anything; cite `file:line` when you reason about code.
+- **Be terse.** Don't re-print code that's already shown in the diff/edits — **no full-file dumps** — and skip step-by-step narration. Report the outcome plus the review findings that *matter* (blocking/important); concise by default, the user can ask for more.
 - **Escalate, don't silently inflate**: if the task turns out much larger or riskier than the tier assumes, say so and suggest dialing the tier up — don't quietly do more process than was asked.

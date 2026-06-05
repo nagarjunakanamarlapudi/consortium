@@ -20,7 +20,7 @@ Implement the (revised) plan. Independent files may be built by parallel impleme
 ## 4. Build checkpoint
 **a. Spec-compliance gate (must pass first).** Dispatch `consortium:spec-compliance-reviewer` on the diff. If `NOT_COMPLIANT`, fix the gaps and re-run until `COMPLIANT`. Do not start quality review until it passes.
 
-**b. Quality + conventions (parallel, advisory).** Dispatch in parallel: `consortium:code-quality-reviewer` and `consortium:domain-conventions-reviewer` (plus any conditional reviewers the registry triggers for this change-type).
+**b. Quality + conventions (parallel, advisory).** Dispatch in parallel: `consortium:code-quality-reviewer` and `consortium:domain-conventions-reviewer`, plus any conditional reviewers the registry triggers for this change-type **whose agent is actually installed**. If a triggered reviewer isn't installed yet, note it in one line and **skip it — never substitute a different agent in its place**.
 
 **c. Synthesize & fix loop.** Synthesize findings (§5). Fix every **blocking** and **important** finding; re-dispatch the affected reviewer(s) to confirm. Minor findings: fix if cheap, else note them. Loop until the gate passes and no blocking/important findings remain.
 

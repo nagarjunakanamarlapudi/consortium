@@ -13,7 +13,7 @@ Single source of truth for which reviewers run, at which checkpoint, in which mo
 
 ## Conditional (by change-type)
 
-*(These reviewers land in Stage 5; rows shown so the contract is visible.)*
+*(These reviewers land in Stage 5. Until a reviewer's agent is installed, the orchestrator **skips its row** — it does not substitute another agent.)*
 
 | trigger (changed paths / keywords) | reviewer | checkpoint | mode |
 |---|---|---|---|
