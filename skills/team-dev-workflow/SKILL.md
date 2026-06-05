@@ -20,10 +20,10 @@ Take the printed value as `TIER`, then print this one-line banner before doing a
 Use the matching `<summary>`:
 - `off` — workflow off; plain Claude
 - `self-eval` — plan → build → self-review → PR
-- `experts-eval` — expert panel review (not in this build; running self-eval)
-- `bar-raiser-eval` — blocking bar-raiser (not in this build; running self-eval)
-- `debate` — rival approaches → judge (not in this build; running self-eval)
-- `vibe-coding` — autonomous bar-raiser run (not in this build; running self-eval)
+- `experts-eval` — plan + diff reviewed by expert subagents (advisory)
+- `bar-raiser-eval` — blocking bar-raiser (not in this build; running experts-eval)
+- `debate` — rival approaches → judge (not in this build; running experts-eval)
+- `vibe-coding` — autonomous bar-raiser run (not in this build; running experts-eval)
 
 The banner is load-bearing: if you didn't print it, you didn't run this skill.
 
@@ -31,7 +31,8 @@ The banner is load-bearing: if you didn't print it, you didn't run this skill.
 
 - `off` → say "workflow off — proceeding as plain Claude", then STOP using this skill and handle the request normally (other skills still apply).
 - `self-eval` → follow [`references/self-eval.md`](references/self-eval.md).
-- `experts-eval` | `bar-raiser-eval` | `debate` | `vibe-coding` → say "‹TIER› isn't implemented in this build yet — running self-eval", then follow [`references/self-eval.md`](references/self-eval.md).
+- `experts-eval` → follow [`references/experts-eval.md`](references/experts-eval.md).
+- `bar-raiser-eval` | `debate` | `vibe-coding` → say "‹TIER› isn't implemented in this build yet — running experts-eval", then follow [`references/experts-eval.md`](references/experts-eval.md).
 
 ## Posture (applies at every tier)
 
