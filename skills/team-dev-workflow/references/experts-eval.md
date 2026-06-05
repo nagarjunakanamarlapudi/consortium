@@ -7,12 +7,14 @@ Consult [`reviewer-registry.md`](reviewer-registry.md) for which reviewers fire.
 ## 1. Plan (grounded)
 Read the relevant files and `CLAUDE.md`/conventions. Write a concrete plan: files to change, approach, acceptance check; list disjoint-file chunks if it's multi-file.
 
-## 2. Plan checkpoint — review the plan
-**Workflow-preferred:** if the Workflow tool is available, run the bundled script —
-`Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/plan-review.js", args: { plan } })` —
-which fans out the plan reviewers and returns structured findings.
+## 2. Plan checkpoint — review the plan (run the workflow)
+**Run the bundled plan-review workflow.** This is the default for `experts-eval` and above — *not* optional, and yes even for a small fan-out (the deterministic engine + schema-validated findings are the whole point of these tiers):
 
-**Fallback (no Workflow tool):** dispatch the always-on plan reviewers yourself, in parallel, in a single message:
+`Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/plan-review.js", args: { plan } })`
+
+It fans out the plan reviewers and returns their structured findings.
+
+**Fallback — ONLY if the Workflow tool genuinely isn't available** (older Claude Code, or the call errors): dispatch the plan reviewers yourself, in parallel, in one message:
 - `consortium:spec-clarity-reviewer` — is the plan concrete / complete / unambiguous?
 - `consortium:domain-conventions-reviewer` — does it fit repo conventions & reuse?
 
