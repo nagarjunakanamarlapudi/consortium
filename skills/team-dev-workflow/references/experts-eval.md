@@ -18,7 +18,7 @@ which fans out the plan reviewers and returns structured findings.
 
 Scale to the change (posture principle): a tiny change may warrant only one reviewer. **Synthesize** their findings (see §5) and revise the plan to address blocking/important items.
 
-**Then present the vetted plan to the user and WAIT for their approval before any code is written** — they may edit it first. (`vibe-coding` is the only mode that never gates; trivial changes never reach experts-eval — they're handled directly upstream.)
+**Then present the vetted plan for approval via plan mode** (`EnterPlanMode` → `ExitPlanMode`) and **write no code until the user approves** — they may edit it first. (See the gate in SKILL.md. `vibe-coding` never gates; trivial changes never reach here.)
 
 ## 3. Build
 Implement the (revised) plan. Independent files may be built by parallel implementer subagents — **disjoint files only** (never two agents on one file).

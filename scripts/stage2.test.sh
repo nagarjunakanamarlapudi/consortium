@@ -39,5 +39,8 @@ if grep -q "Human plan-approval gate" "$sk"; then ok "skill documents the human 
 # 6. SKILL documents the triviality short-circuit (ceiling, not a floor)
 if grep -q "ceiling, not a floor" "$sk"; then ok "skill documents the triviality short-circuit"; else fail "skill missing the triviality short-circuit"; fi
 
+# 7. the gate uses native plan mode (ExitPlanMode)
+if grep -q "ExitPlanMode" "$sk"; then ok "gate uses native plan mode (ExitPlanMode)"; else fail "gate does not use native plan mode"; fi
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]

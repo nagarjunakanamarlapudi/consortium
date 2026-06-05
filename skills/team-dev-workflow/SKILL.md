@@ -39,10 +39,10 @@ The banner is load-bearing: if you didn't print it, you didn't run this skill.
 
 ## Human plan-approval gate (every tier except `vibe-coding`)
 
-Before writing any code, **present the plan and wait for the user to approve it** (they may edit it first). Do not start building until they do. At `experts-eval` and above, the plan reviewers run first, so you present an *already-vetted* plan. This is the **human** gate — distinct from the bar-raiser's automated *quality* gate.
+The gate uses Claude Code's **native plan mode**. Draft and vet the plan first (the playbook's reviewers / `plan-review.js` run here), then — **before editing any files** — present it for approval: call **`EnterPlanMode`**, then **`ExitPlanMode`** with the plan. Build only after the user approves; if they request changes, revise and `ExitPlanMode` again. The gate does no tool work itself (reviewers already ran), so it's unaffected by any plan-mode tool restrictions. This is the **human** gate — distinct from the bar-raiser's automated *quality* gate.
 
 - **Trivial changes never reach this gate** — they short-circuit the whole workflow (see *Trivial change first* in Step 1).
-- **`vibe-coding` never gates** — it runs autonomously; its only human touchpoint is at the very end if a *major* concern is unresolved.
+- **`vibe-coding` never gates** — it runs autonomously (never enters plan mode); its only human touchpoint is at the very end if a *major* concern is unresolved.
 
 ## Posture (applies at every tier)
 
