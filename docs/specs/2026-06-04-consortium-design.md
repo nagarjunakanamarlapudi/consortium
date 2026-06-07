@@ -217,7 +217,9 @@ On any build/refactor/ship request the skill runs:
 ### 5.1 Reviewer registry (pluggable core)
 `references/reviewer-registry.md` — the single source of truth mapping **change-type → reviewer agent → checkpoint (plan/build) → mode (advisory/gating)**. Adding a reviewer = add an agent + one row. A row may reference any installed agent (e.g. `pr-review-toolkit`'s) so users compose instead of reimplement.
 
-Always-on (at `experts-eval`+): `spec-clarity-reviewer` (plan), `domain-conventions-reviewer` (plan+build), `spec-compliance-reviewer` (build gate), `code-quality-reviewer` (build). Conditional rows fire by change-type (see roster).
+Always-on (at `experts-eval`+): `spec-clarity-reviewer` (plan), `domain-conventions-reviewer` (plan+build), `spec-compliance-reviewer` (build gate), `code-quality-reviewer` (build), `simplifier` (build). Conditional rows fire by change-type (see roster).
+
+**Project-reviewer auto-discovery:** the skill also auto-wires a repo's own read-only reviewer agents (`.claude/agents/`) by description-match — no config. Constraint (verified by test): dynamic workflows resolve `agentType` only against built-in + installed-*plugin* agents, **not** a repo's local `.claude/agents/`. So namespaced plugin reviewers ride the workflow's `extraReviewers`, while project-local (bare) reviewers are dispatched by the **skill** (Agent tool) and merged into the same synthesis/fix loop.
 
 ### 5.2 Starter roster (`agents/`)
 

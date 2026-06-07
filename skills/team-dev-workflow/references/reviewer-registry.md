@@ -29,6 +29,22 @@ Single source of truth for which reviewers run, at which checkpoint, in which mo
 | IaC (Terraform/CDK/Pulumi/CFN) | `consortium:iac-change-reviewer` | build | advisory |
 | logic / behavior changes | `consortium:test-coverage-reviewer` | build | advisory |
 
+## Project reviewers (auto-discovered) — no config needed
+
+The skill auto-wires a **repo's own** reviewer agents. At the plan/build checkpoint, the skill:
+
+1. **Lists the repo's agents** — read `.claude/agents/*.md` frontmatter (`name`, `description`, `tools`).
+2. **Classifies an agent as a reviewer** when it is **read-only** (no `Edit` / `Write` / `MultiEdit` in `tools`) **and** its `description` says it reviews/audits a plan, a diff, or code.
+3. **Selects it only if the current change matches** its description's triggers (e.g. *"use when a PR touches `infra/**`"*) — the same judgment used to auto-invoke agents. Skips writers (implementers/deployers) and non-matching reviewers; don't over-dispatch.
+4. **Dispatches it — key constraint — *itself*, via the Agent tool, NOT inside the workflow.** Dynamic workflows resolve `agentType` only against built-in + **installed-plugin** agents (`consortium:*`, `pr-review-toolkit:*`, …) — they do **not** see a repo's local `.claude/agents/`. So:
+   - **Plugin reviewers** (namespaced) → passed to the workflow as `args.extraReviewers`.
+   - **Project-local reviewers** (bare name, from `.claude/agents/`) → the **skill dispatches them** (Agent tool), in parallel, and folds their findings into the same synthesis + fix loop.
+5. **Routes by stage** — plan/spec reviewer → plan checkpoint; diff/code reviewer → build checkpoint (after `build.js` produces the diff).
+
+Example: a repo's read-only `cdk-change-reviewer` (*"…when a PR touches `infra/**`"*) — on infra changes the skill auto-dispatches it and merges its findings. No config.
+
+*(Want to override the heuristic? An explicit project registry would be the only reason — not built yet; add it only if the heuristic mis-fires.)*
+
 ## Rules
 
 - A **gate** reviewer must pass before advisory reviewers run and before ship.
