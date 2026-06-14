@@ -33,5 +33,17 @@ check "tokens has dark block"        ".dark-tokens" "$(cat "$FW/tokens.css" 2>/d
 check "tokens is NOT Aadhaa teal"    "" "$(grep -c '#2FA39A' "$FW/tokens.css" 2>/dev/null | grep -x 0 && echo OK_NO_TEAL)"
 check "tokens is NOT Aadhaa amber"   "" "$(grep -c '#F5C443' "$FW/tokens.css" 2>/dev/null | grep -x 0 && echo OK_NO_AMBER)"
 
+# ---- Task 3: themes + theme-selector ----
+node --check "$FW/theme-selector.js" >/dev/null 2>&1 && echo "ok   - theme-selector.js parses" || { echo "FAIL - theme-selector.js syntax"; fails=$((fails+1)); }
+checkge "themes.css has >=20 [data-theme] blocks" 20 "$(grep -c '\[data-theme=' "$FW/themes.css" 2>/dev/null || echo 0)"
+checkge "ThemeKit.THEMES has >=20 entries" 20 "$(jeval "console.log(require('$FW/theme-selector.js').THEMES.length)")"
+check "every theme id is defined in CSS" "ALL_THEMES_DEFINED" "$(jeval "
+  const fs=require('fs');
+  const css=fs.readFileSync('$FW/themes.css','utf8');
+  const ids=require('$FW/theme-selector.js').THEMES.map(t=>t.id).filter(id=>id!=='neutral');
+  const missing=ids.filter(id=>!css.includes('[data-theme=\"'+id+'\"]'));
+  console.log(missing.length? 'MISSING:'+missing.join(',') : 'ALL_THEMES_DEFINED');
+")"
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
