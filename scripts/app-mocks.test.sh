@@ -95,5 +95,12 @@ check "deriveGraph yields nodes" "2" "$(node -e 'const F=require(process.argv[1]
 check "deriveGraph yields edges" "a->b" "$(node -e 'const F=require(process.argv[1]); const s={a:{id:"a",links:["b"]},b:{id:"b",links:[]}}; const g=F.deriveGraph(s); console.log(g.edges.map(e=>e.from+"->"+e.to).join(","))' "$FW/flowmap.js" 2>&1)"
 check "deriveGraph drops dangling edges" "EDGES=0" "$(node -e 'const F=require(process.argv[1]); const s={a:{id:"a",links:["ghost"]}}; console.log("EDGES="+F.deriveGraph(s).edges.length)' "$FW/flowmap.js" 2>&1)"
 
+# ---- Task 11: a11y ----
+node --check "$FW/a11y.js" >/dev/null 2>&1 && echo "ok   - a11y.js parses" || { echo "FAIL - a11y.js syntax"; fails=$((fails+1)); }
+check "contrast black/white = 21" "21" "$(jeval "const A=require('$FW/a11y.js'); console.log(Math.round(A.contrastRatio('#000000','#ffffff')))")"
+check "wcag 21 is AAA"   "AAA"  "$(jeval "const A=require('$FW/a11y.js'); console.log(A.wcagLevel(A.contrastRatio('#000000','#ffffff'),{large:false}))")"
+check "wcag low is fail" "fail" "$(jeval "const A=require('$FW/a11y.js'); console.log(A.wcagLevel(A.contrastRatio('#999999','#ffffff'),{large:false}))")"
+check "exposes mountAudit" "mountAudit" "$(cat "$FW/a11y.js" 2>/dev/null)"
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
