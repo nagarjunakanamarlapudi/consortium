@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="neutral">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title><!-- TODO: page title — e.g. "Checkout flow · spec · MyApp" --></title>
+<!-- Framework CSS — order matters: tokens → themes → frame → components → spec -->
+<link rel="stylesheet" href="_framework/tokens.css">
+<link rel="stylesheet" href="_framework/themes.css">
+<link rel="stylesheet" href="_framework/frame.css">
+<link rel="stylesheet" href="_framework/components.css">
+<link rel="stylesheet" href="_framework/spec-styles.css">
+</head>
+<body id="body">
+<main class="shell">
+
+  <header class="hero">
+    <div>
+      <div class="kicker"><span class="dot"></span> <!-- TODO: project · flow --></div>
+      <h1><!-- TODO: flow name e.g. "Checkout.<br>Built for <span class='tint'>touch</span>." --></h1>
+    </div>
+    <div class="meta">
+      <b>Spec for</b> · <!-- TODO: Flutter / SwiftUI / Compose / Web --><br>
+      <b>Updated</b> · <!-- TODO: date --><br>
+      <b>Status</b> · ready for execution
+    </div>
+  </header>
+
+  <div class="quickref">
+    <!-- TODO: 4 must-know values -->
+    <div class="qr"><div class="k">Reference device</div><div class="v">iPhone 17 Pro Max</div><div class="vsub">switch via selector</div></div>
+    <div class="qr"><div class="k">Min tap target</div><div class="v">44 × 44 pt</div><div class="vsub">audited below</div></div>
+    <div class="qr"><div class="k">Key motion</div><div class="v">280 ms push</div><div class="vsub"><code>cubic-bezier(.2,.75,.25,1)</code></div></div>
+    <div class="qr"><div class="k">Active theme</div><div class="v" id="qr-theme">Neutral</div><div class="vsub">switch via selector</div></div>
+  </div>
+
+  <div class="legend">
+    <span class="title">Live state</span>
+    <span id="legend-items" style="display:flex;gap:8px;flex-wrap:wrap;"></span>
+    <button onclick="Router.back()">Back</button>
+    <button class="dark-toggle" id="dark-btn" onclick="toggleDark()">Dark mode</button>
+    <span id="theme-selector-host"></span>
+    <span id="device-selector-host"></span>
+  </div>
+
+  <section class="s">
+    <h2>Interactive <span class="tint">playground</span></h2>
+    <p class="lead"><!-- TODO: 1-2 sentences: the flow + key gestures/navigation. --></p>
+    <div class="playground">
+      <div class="phone"><div class="phone-frame"><div class="phone-screen" id="screen"></div></div></div>
+      <div class="annot"><div class="group"><div class="k">Navigation</div>
+        <div class="row-spec"><span class="label">Tap item</span><span class="val">push detail</span></div>
+        <div class="row-spec"><span class="label">Back</span><span class="val">pop</span></div>
+        <div class="row-spec"><span class="label">Tabs</span><span class="val">switch root</span></div>
+      </div></div>
+    </div>
+  </section>
+
+  <section class="s">
+    <h2>Flow <span class="tint">map</span></h2>
+    <p class="lead">Auto-derived from screen links · click a node to jump.</p>
+    <div id="flowmap-host"></div>
+  </section>
+
+  <section class="s">
+    <h2>State <span class="tint">catalog</span></h2>
+    <p class="lead">Frozen frames · same render path as the playground via state-swap.</p>
+    <div class="catalog">
+      <!-- TODO: one tile per (screen,state). data-screen optional. -->
+      <div><div class="cap"><span class="dot"></span> home · default</div><div class="phone-frame" data-state="default" data-screen="home"><div class="phone-screen"></div></div></div>
+      <div><div class="cap"><span class="dot warn"></span> home · loading</div><div class="phone-frame" data-state="loading" data-screen="home"><div class="phone-screen"></div></div></div>
+      <div><div class="cap"><span class="dot dark"></span> home · dark</div><div class="phone-frame" data-state="default" data-screen="home"><div class="phone-screen dark"></div></div></div>
+    </div>
+  </section>
+
+  <section class="s">
+    <h2>Accessibility <span class="tint">audit</span></h2>
+    <div id="a11y-host" class="a11y"></div>
+  </section>
+
+  <!-- TODO: add remaining spec sections: Motion+gestures · Deep-link map · Pixel spec · Interaction matrix · Widget-tree + navigation mapping. See examples/shop-flow.html. -->
+
+  <div class="foot"><span><!-- TODO: footer --></span></div>
+</main>
+
+<!-- Framework JS — order matters -->
+<script src="_framework/icons.js"></script>
+<script src="_framework/gestures.js"></script>
+<script src="_framework/state-swap.js"></script>
+<script src="_framework/device-selector.js"></script>
+<script src="_framework/theme-selector.js"></script>
+<script src="_framework/router.js"></script>
+<script src="_framework/flowmap.js"></script>
+<script src="_framework/a11y.js"></script>
+
+<script>
+/* TODO: seed data */
+const seed = () => ({ items: [], loading: false, dark: false });
+let state = seed();
+
+function statusBar() { return `<div class="status-bar"><span>9:41</span><span class="icons">${I.signal}${I.wifi}${I.battery}</span></div>`; }
+
+/* TODO: register one screen per node. ctx = {surface,theme,state,back,navigate}. */
+Router.registerScreen('home', {
+  title: 'Home', tab: 'home', links: ['detail'],
+  render: (ctx) => `<div class="appbar"><div class="appbar-title"><h2>Home</h2></div></div>
+    <div class="list pad">${(ctx.state.items||[]).map(it => `
+      <div class="digrow" data-id="${it.id}" onpointerdown="gStart(event, ${it.id})">${it.title}</div>`).join('')}</div>`,
+});
+Router.registerScreen('detail', {
+  title: 'Detail', links: ['home'],
+  render: (ctx) => `<div class="appbar"><button class="navbar-back" onclick="Router.back()">${I.back} Back</button></div>
+    <div class="pad"><h2>Detail</h2></div>`,
+});
+
+/* gesture globals */
+function tapRow(id) { Router.navigate('detail', { mode: 'push' }); }
+function deleteItem(id) { state.items = state.items.filter(i => i.id !== id); Router.navigate(Router.current().id, { mode: 'replace' }); }
+
+function toggleDark() {
+  state.dark = !state.dark;
+  document.querySelectorAll('.phone-screen').forEach(s => s.classList.toggle('dark', state.dark));
+  document.body.classList.toggle('dark-tokens', state.dark);
+  const b = document.getElementById('dark-btn'); b.classList.toggle('on', state.dark); b.textContent = state.dark ? 'Light mode' : 'Dark mode';
+}
+
+/* catalog: render a named screen with temp state (note 2 params → per-screen) */
+function catalogScreen(stateName, screenId) {
+  return withTempState(temp => {
+    switch (stateName) { case 'loading': temp.loading = true; break; case 'empty': temp.items = []; break; }
+  }, () => {
+    const scr = Router.getScreens()[screenId] || Router.current();
+    return statusBar() + scr.render({ surface: document.body.dataset.surface, theme: 'neutral', state: state, back(){}, navigate(){} });
+  });
+}
+
+/* Mount */
+document.getElementById('theme-selector-host').innerHTML = ThemeKit.renderThemeSelector();
+document.getElementById('device-selector-host').innerHTML = renderDeviceSelector();
+mountThemeSelector('neutral');
+mountDeviceSelector('iphone-17-pro-max');
+Router.mountTabBar([{ id: 'home', label: 'Home', icon: I.home, screen: 'home' }]);
+Router.mount('screen', 'home');
+Flowmap.mount('flowmap-host');
+A11y.mountAudit('a11y-host');
+mountCatalog(catalogScreen);
+window.addEventListener('devicechange', () => Router.navigate(Router.current().id, { mode: 'replace' }));
+window.addEventListener('themechange', e => { const o = ThemeKit.THEMES.find(t => t.id === e.detail.id); document.getElementById('qr-theme').textContent = o ? o.name : e.detail.id; });
+</script>
+</body>
+</html>

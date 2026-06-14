@@ -102,5 +102,18 @@ check "wcag 21 is AAA"   "AAA"  "$(jeval "const A=require('$FW/a11y.js'); consol
 check "wcag low is fail" "fail" "$(jeval "const A=require('$FW/a11y.js'); console.log(A.wcagLevel(A.contrastRatio('#999999','#ffffff'),{large:false}))")"
 check "exposes mountAudit" "mountAudit" "$(cat "$FW/a11y.js" 2>/dev/null)"
 
+# ---- Task 10: template + example ----
+check "template loads themes.css"      "_framework/themes.css"   "$(cat "$SKILL/template.html" 2>/dev/null)"
+check "template loads router.js"       "_framework/router.js"    "$(cat "$SKILL/template.html" 2>/dev/null)"
+check "template loads flowmap.js"      "_framework/flowmap.js"   "$(cat "$SKILL/template.html" 2>/dev/null)"
+check "template loads a11y.js"         "_framework/a11y.js"      "$(cat "$SKILL/template.html" 2>/dev/null)"
+check "template registers a screen"    "registerScreen"          "$(cat "$SKILL/template.html" 2>/dev/null)"
+check "template mounts theme selector" "mountThemeSelector"      "$(cat "$SKILL/template.html" 2>/dev/null)"
+check "template mounts flow map"       "Flowmap.mount"           "$(cat "$SKILL/template.html" 2>/dev/null)"
+check "example imports framework"      "../framework/router.js"  "$(cat "$SKILL/examples/shop-flow.html" 2>/dev/null)"
+check "example registers >=3 screens"  "SCREENS_OK" "$(c=$(grep -c 'registerScreen' "$SKILL/examples/shop-flow.html" 2>/dev/null || echo 0); [ "$c" -ge 3 ] && echo SCREENS_OK || echo "ONLY_$c")"
+check "example uses real images"       "images.unsplash.com"     "$(cat "$SKILL/examples/shop-flow.html" 2>/dev/null)"
+check "example has no TODO markers"    "NO_TODO" "$(grep -qi 'TODO' "$SKILL/examples/shop-flow.html" && echo HAS_TODO || echo NO_TODO)"
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]

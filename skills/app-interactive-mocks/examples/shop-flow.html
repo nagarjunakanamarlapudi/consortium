@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="neutral">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shop &amp; checkout flow · spec · Acme Shop</title>
+<!-- Framework CSS — order matters: tokens → themes → frame → components → spec -->
+<link rel="stylesheet" href="../framework/tokens.css">
+<link rel="stylesheet" href="../framework/themes.css">
+<link rel="stylesheet" href="../framework/frame.css">
+<link rel="stylesheet" href="../framework/components.css">
+<link rel="stylesheet" href="../framework/spec-styles.css">
+<style>
+  /* Page-local: product grid + cards + cart/checkout bits (everything else is framework). */
+  .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; }
+  .pcard { border: 1px solid var(--border); border-radius: var(--r-card, 16px); overflow: hidden; background: var(--card); cursor: pointer; text-align: left; padding: 0; font: inherit; color: inherit; transition: transform .12s ease, box-shadow .12s ease; min-height: 44px; display: flex; flex-direction: column; }
+  .pcard:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); }
+  .pcard:active { transform: scale(.98); }
+  .pcard img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; background: var(--hover); }
+  .pcard .pc-body { padding: 10px 12px 12px; }
+  .pcard .pc-name { font-family: var(--display); font-weight: 600; font-size: 14px; color: var(--text); letter-spacing: -0.01em; line-height: 1.2; }
+  .pcard .pc-price { font-family: var(--body); font-weight: 600; font-size: 13px; color: var(--primary-600); margin-top: 4px; font-feature-settings: "tnum"; }
+
+  .phero { position: relative; }
+  .phero img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--hover); }
+  .pdetail { padding: 16px 18px 0; }
+  .pdetail .pd-name { font-family: var(--display); font-weight: 700; font-size: 24px; letter-spacing: -0.02em; color: var(--text); }
+  .pdetail .pd-price { font-family: var(--body); font-weight: 600; font-size: 17px; color: var(--primary-600); margin-top: 6px; font-feature-settings: "tnum"; }
+  .pdetail .pd-desc { font-size: 13.5px; line-height: 1.55; color: var(--muted); margin-top: 12px; }
+
+  .cta-row { padding: 18px; display: grid; gap: 10px; }
+  .btn-primary { min-height: 48px; border: none; border-radius: var(--r-md, 12px); background: var(--primary); color: #fff; font-family: var(--body); font-weight: 600; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: filter .12s ease, transform .1s ease; }
+  .btn-primary:hover { filter: brightness(.95); }
+  .btn-primary:active { transform: scale(.98); }
+  .btn-primary svg { width: 18px; height: 18px; }
+  .btn-ghost { min-height: 44px; border: 1px solid var(--border); border-radius: var(--r-md, 12px); background: transparent; color: var(--text); font-family: var(--body); font-weight: 600; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-ghost:hover { background: var(--hover); }
+
+  .cart-row { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border-soft, var(--border)); }
+  .cart-row img { width: 52px; height: 52px; border-radius: 11px; object-fit: cover; background: var(--hover); }
+  .cart-row .cr-name { font-family: var(--display); font-weight: 600; font-size: 14px; color: var(--text); }
+  .cart-row .cr-price { font-family: var(--body); font-weight: 600; font-size: 13px; color: var(--text-2); margin-top: 3px; font-feature-settings: "tnum"; }
+  .summary { padding: 14px 18px; display: grid; gap: 8px; }
+  .summary .srow { display: flex; justify-content: space-between; font-size: 13.5px; color: var(--muted); font-feature-settings: "tnum"; }
+  .summary .srow.total { color: var(--text); font-weight: 700; font-size: 15px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+  .modal-head { padding: 18px 18px 4px; }
+  .modal-head h2 { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: -0.02em; color: var(--text); }
+  .modal-head .sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .order-ok { padding: 48px 28px 40px; text-align: center; }
+  .order-ok .ok-ic { width: 64px; height: 64px; border-radius: 50%; background: var(--success-soft); color: var(--success); display: grid; place-items: center; margin: 0 auto 18px; }
+  .order-ok .ok-ic svg { width: 30px; height: 30px; }
+  .order-ok .ok-t1 { font-family: var(--display); font-size: 21px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  .order-ok .ok-t2 { font-size: 13.5px; color: var(--muted); margin: 8px auto 22px; max-width: 32ch; line-height: 1.5; }
+</style>
+</head>
+<body id="body">
+<main class="shell">
+
+  <header class="hero">
+    <div>
+      <div class="kicker"><span class="dot"></span> Acme Shop · shop &amp; checkout</div>
+      <h1>Shop.<br>Built for <span class="tint">touch</span>.</h1>
+    </div>
+    <div class="meta">
+      <b>Spec for</b> · Flutter / SwiftUI / Compose<br>
+      <b>Updated</b> · 14 Jun 2026<br>
+      <b>Status</b> · ready for execution
+    </div>
+  </header>
+
+  <div class="quickref">
+    <div class="qr"><div class="k">Reference device</div><div class="v">iPhone 17 Pro Max</div><div class="vsub">switch via selector</div></div>
+    <div class="qr"><div class="k">Min tap target</div><div class="v">44 × 44 pt</div><div class="vsub">audited below</div></div>
+    <div class="qr"><div class="k">Key motion</div><div class="v">280 ms push</div><div class="vsub"><code>cubic-bezier(.2,.75,.25,1)</code></div></div>
+    <div class="qr"><div class="k">Active theme</div><div class="v" id="qr-theme">Neutral</div><div class="vsub">switch via selector</div></div>
+  </div>
+
+  <div class="legend">
+    <span class="title">Live state</span>
+    <span id="legend-items" style="display:flex;gap:8px;flex-wrap:wrap;"></span>
+    <button onclick="Router.back()">Back</button>
+    <button class="dark-toggle" id="dark-btn" onclick="toggleDark()">Dark mode</button>
+    <span id="theme-selector-host"></span>
+    <span id="device-selector-host"></span>
+  </div>
+
+  <section class="s">
+    <h2>Interactive <span class="tint">playground</span></h2>
+    <p class="lead">Browse the catalog, tap a product to push its detail, add it to the cart, then check out through a modal order summary. Use the tab bar to jump between Shop and Cart; Back pops the stack.</p>
+    <div class="playground">
+      <div class="phone"><div class="phone-frame"><div class="phone-screen" id="screen"></div></div></div>
+      <div class="annot"><div class="group"><div class="k">Navigation</div>
+        <div class="row-spec"><span class="label">Tap product</span><span class="val">push detail</span></div>
+        <div class="row-spec"><span class="label">Add to cart</span><span class="val">mutate + toast</span></div>
+        <div class="row-spec"><span class="label">Checkout</span><span class="val">modal</span></div>
+        <div class="row-spec"><span class="label">Back</span><span class="val">pop</span></div>
+        <div class="row-spec"><span class="label">Tabs</span><span class="val">switch root</span></div>
+      </div></div>
+    </div>
+  </section>
+
+  <section class="s">
+    <h2>Flow <span class="tint">map</span></h2>
+    <p class="lead">Auto-derived from screen links · click a node to jump.</p>
+    <div id="flowmap-host"></div>
+  </section>
+
+  <section class="s">
+    <h2>State <span class="tint">catalog</span></h2>
+    <p class="lead">Frozen frames · same render path as the playground via state-swap.</p>
+    <div class="catalog">
+      <div><div class="cap"><span class="dot"></span> catalog · default</div><div class="phone-frame" data-state="default" data-screen="catalog"><div class="phone-screen"></div></div></div>
+      <div><div class="cap"><span class="dot warn"></span> catalog · loading</div><div class="phone-frame" data-state="loading" data-screen="catalog"><div class="phone-screen"></div></div></div>
+      <div><div class="cap"><span class="dot"></span> cart · default</div><div class="phone-frame" data-state="default" data-screen="cart"><div class="phone-screen"></div></div></div>
+      <div><div class="cap"><span class="dot warn"></span> cart · empty</div><div class="phone-frame" data-state="empty" data-screen="cart"><div class="phone-screen"></div></div></div>
+      <div><div class="cap"><span class="dot dark"></span> catalog · dark</div><div class="phone-frame" data-state="default" data-screen="catalog"><div class="phone-screen dark"></div></div></div>
+    </div>
+  </section>
+
+  <section class="s">
+    <h2>Accessibility <span class="tint">audit</span></h2>
+    <div id="a11y-host" class="a11y"></div>
+  </section>
+
+  <section class="s">
+    <h2>Motion + <span class="tint">gestures</span></h2>
+    <p class="lead">All transitions share one easing curve; durations differ by intent. Reduced-motion falls back to an instant cross-fade.</p>
+    <table class="spec-table">
+      <thead><tr><th>Transition</th><th>Duration</th><th>Easing</th><th>Trigger</th></tr></thead>
+      <tbody>
+        <tr><td>Push (detail)</td><td>280 ms</td><td><code>cubic-bezier(.2,.75,.25,1)</code></td><td>Tap product card</td></tr>
+        <tr><td>Pop (back)</td><td>260 ms</td><td><code>cubic-bezier(.2,.75,.25,1)</code></td><td>Back button / edge swipe</td></tr>
+        <tr><td>Modal (checkout)</td><td>300 ms</td><td><code>cubic-bezier(.2,.75,.25,1)</code></td><td>Checkout button</td></tr>
+        <tr><td>Tab switch</td><td>instant</td><td>—</td><td>Tab bar tap (resets stack)</td></tr>
+        <tr><td>Tap target rule</td><td colspan="3">Every interactive element is ≥ 44 × 44 pt (audited above).</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="s">
+    <h2>Deep-link <span class="tint">map</span></h2>
+    <p class="lead">Canonical routes → screens. <code>:id</code> resolves a product by id; unknown ids fall back to the catalog.</p>
+    <table class="spec-table">
+      <thead><tr><th>Route</th><th>Screen</th><th>Params</th><th>Auth</th></tr></thead>
+      <tbody>
+        <tr><td><code>/shop</code></td><td>catalog</td><td>—</td><td>public</td></tr>
+        <tr><td><code>/product/:id</code></td><td>product</td><td><code>id</code> (product)</td><td>public</td></tr>
+        <tr><td><code>/cart</code></td><td>cart</td><td>—</td><td>public</td></tr>
+        <tr><td><code>/checkout</code></td><td>checkout</td><td>—</td><td>signed-in</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="s">
+    <h2>Pixel <span class="tint">spec</span></h2>
+    <p class="lead">Reference device: <b>iPhone 17 Pro Max</b> (440 × 956 pt logical, 3× density). Type ramp uses the framework display/body families. Colours follow the active theme — do not hard-code hex.</p>
+    <table class="spec-table">
+      <thead><tr><th>Role</th><th>Size / line-height</th><th>Family</th><th>Token</th></tr></thead>
+      <tbody>
+        <tr><td>Screen title</td><td>28 / 30 pt</td><td><code>--display</code> 700</td><td><code>--text</code></td></tr>
+        <tr><td>Section / product name</td><td>24 / 28 pt</td><td><code>--display</code> 700</td><td><code>--text</code></td></tr>
+        <tr><td>Body</td><td>14 / 22 pt</td><td><code>--body</code> 400–600</td><td><code>--text</code> / <code>--muted</code></td></tr>
+        <tr><td>Price</td><td>13–17 pt, tnum</td><td><code>--body</code> 600</td><td><code>--primary-600</code></td></tr>
+        <tr><td>Caption / meta</td><td>11–13 pt</td><td><code>--body</code> 500</td><td><code>--muted</code></td></tr>
+      </tbody>
+    </table>
+    <table class="spec-table">
+      <thead><tr><th>Component</th><th>Key metrics</th></tr></thead>
+      <tbody>
+        <tr><td>Product card</td><td>1:1 image, 12 px radius, 12 px gap, 2-up grid</td></tr>
+        <tr><td>Primary button</td><td>48 pt tall, full-width, <code>--primary</code> fill, 12 px radius</td></tr>
+        <tr><td>Cart row</td><td>52 px thumb, 12 px v-padding, 1 px divider</td></tr>
+        <tr><td>Tab bar</td><td>2 tabs, icon + label, active tint <code>--primary</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="s">
+    <h2>Interaction <span class="tint">matrix</span></h2>
+    <p class="lead">One row per tappable. Wire each to the real API + analytics event before shipping.</p>
+    <table class="spec-table">
+      <thead><tr><th>Element</th><th>UI feedback</th><th>State change</th><th>API</th><th>Target</th><th>Analytics</th><th>Error</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Product card</td><td>Scale 0.98 on press</td><td><code>selected = id</code></td>
+          <td><code>GET /products/:id</code></td><td>product</td><td><code>product_viewed</code></td><td>Toast + stay on catalog</td>
+        </tr>
+        <tr>
+          <td>Add to cart</td><td>Toast "Added"</td><td><code>cart.push(item)</code></td>
+          <td><code>POST /cart/items</code></td><td>(stays) / cart</td><td><code>add_to_cart</code></td><td>Toast + roll back item</td>
+        </tr>
+        <tr>
+          <td>Tab switch</td><td>Active tint</td><td>Stack → <code>[root]</code></td>
+          <td>none</td><td>catalog / cart</td><td><code>tab_changed</code></td><td>n/a</td>
+        </tr>
+        <tr>
+          <td>Checkout</td><td>Modal slide-up</td><td>open modal</td>
+          <td><code>POST /checkout/session</code></td><td>checkout</td><td><code>checkout_started</code></td><td>Inline banner, keep cart</td>
+        </tr>
+        <tr>
+          <td>Place order</td><td>Confirmed screen</td><td>clear cart</td>
+          <td><code>POST /orders</code></td><td>checkout (confirmed)</td><td><code>order_placed</code></td><td>Retry CTA, keep cart</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="s">
+    <h2>Widget-tree + navigation <span class="tint">mapping</span></h2>
+    <p class="lead">Framework components → native widgets. Use the suggested package where a built-in doesn't exist.</p>
+    <table class="spec-table">
+      <thead><tr><th>Component</th><th>Flutter</th><th>SwiftUI</th><th>Jetpack Compose</th><th>Package suggestion</th></tr></thead>
+      <tbody>
+        <tr><td>Product grid</td><td><code>GridView.count</code></td><td><code>LazyVGrid</code></td><td><code>LazyVerticalGrid</code></td><td>—</td></tr>
+        <tr><td>Product card</td><td><code>Card</code> + <code>InkWell</code></td><td><code>Button{ }</code></td><td><code>Card</code> + <code>clickable</code></td><td>—</td></tr>
+        <tr><td>Remote image</td><td><code>Image.network</code></td><td><code>AsyncImage</code></td><td><code>AsyncImage</code> (Coil)</td><td>cached_network_image / Coil</td></tr>
+        <tr><td>App bar</td><td><code>AppBar</code></td><td><code>.toolbar</code></td><td><code>TopAppBar</code></td><td>—</td></tr>
+        <tr><td>Tab bar</td><td><code>NavigationBar</code></td><td><code>TabView</code></td><td><code>NavigationBar</code></td><td>—</td></tr>
+        <tr><td>Cart list</td><td><code>ListView</code></td><td><code>List</code></td><td><code>LazyColumn</code></td><td>—</td></tr>
+        <tr><td>Primary button</td><td><code>FilledButton</code></td><td><code>Button</code> + <code>.buttonStyle</code></td><td><code>Button</code></td><td>—</td></tr>
+        <tr><td>Skeleton loader</td><td>Shimmer container</td><td>Redacted placeholder</td><td>Shimmer modifier</td><td>shimmer / placeholder-material</td></tr>
+        <tr><td>Toast</td><td><code>SnackBar</code></td><td>Overlay banner</td><td><code>Snackbar</code></td><td>—</td></tr>
+      </tbody>
+    </table>
+    <table class="spec-table">
+      <thead><tr><th>Router action</th><th>Flutter</th><th>SwiftUI</th><th>Jetpack Compose</th></tr></thead>
+      <tbody>
+        <tr><td>push (detail)</td><td><code>Navigator.push</code> / <code>context.push</code> (go_router)</td><td><code>NavigationStack</code> path append</td><td><code>navController.navigate(route)</code></td></tr>
+        <tr><td>pop (back)</td><td><code>Navigator.pop</code></td><td>path removeLast</td><td><code>navController.popBackStack()</code></td></tr>
+        <tr><td>modal (checkout)</td><td><code>showModalBottomSheet</code> / fullscreen dialog</td><td><code>.sheet</code></td><td><code>ModalBottomSheet</code></td></tr>
+        <tr><td>tab (switch root)</td><td><code>go_router</code> StatefulShellRoute</td><td><code>TabView</code> selection</td><td><code>NavHost</code> + bottom-nav reselect</td></tr>
+        <tr><td>Overall nav host</td><td><code>go_router</code> / <code>Navigator</code></td><td><code>NavigationStack</code></td><td><code>NavHost</code> (navigation-compose)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="foot"><span>Acme Shop · shop &amp; checkout flow · built with app-interactive-mocks</span></div>
+</main>
+
+<!-- Framework JS — order matters -->
+<script src="../framework/icons.js"></script>
+<script src="../framework/gestures.js"></script>
+<script src="../framework/state-swap.js"></script>
+<script src="../framework/device-selector.js"></script>
+<script src="../framework/theme-selector.js"></script>
+<script src="../framework/router.js"></script>
+<script src="../framework/flowmap.js"></script>
+<script src="../framework/a11y.js"></script>
+
+<script>
+/* ---- seed data ---- */
+const IMG = q => `https://images.unsplash.com/${q}?w=200&h=200&fit=crop&q=80`;
+const seed = () => ({
+  products: [
+    { id: 1, name: 'Aero Runners',     price: 128, image: IMG('photo-1542291026-7eec264c27ff') },
+    { id: 2, name: 'Field Backpack',   price:  96, image: IMG('photo-1553062407-98eeb64c6a62') },
+    { id: 3, name: 'Studio Headphones',price: 199, image: IMG('photo-1505740420928-5e560c06d30e') },
+    { id: 4, name: 'Analog Watch',     price: 245, image: IMG('photo-1523275335684-37898b6baf30') },
+    { id: 5, name: 'Wayfarer Shades',  price:  79, image: IMG('photo-1572635196237-14b3f281503f') },
+    { id: 6, name: 'Travel Mug',       price:  34, image: IMG('photo-1514228742587-6b1558fcca3d') },
+  ],
+  cart: [],
+  selected: null,
+  loading: false,
+  dark: false,
+});
+let state = seed();
+
+/* ---- helpers ---- */
+function statusBar() { return `<div class="status-bar"><span>9:41</span><span class="icons">${I.signal}${I.wifi}${I.battery}</span></div>`; }
+function money(n) { return '$' + Number(n).toFixed(2); }
+function productById(id) { return (state.products || []).find(p => p.id === id) || null; }
+function cartTotal() { return (state.cart || []).reduce((sum, it) => sum + it.price, 0); }
+
+function toast(msg) {
+  let host = document.querySelector('.toast-host');
+  if (!host) { host = document.createElement('div'); host.className = 'toast-host'; document.body.appendChild(host); }
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  host.appendChild(t);
+  setTimeout(() => t.remove(), 1800);
+}
+
+/* ---- screens ---- */
+Router.registerScreen('catalog', {
+  title: 'Shop', tab: 'shop', links: ['product'],
+  render: (ctx) => {
+    const head = `<div class="appbar"><div class="appbar-title"><h2>Shop</h2></div></div>`;
+    if (ctx.state.loading) {
+      const sk = Array.from({ length: 6 }).map(() =>
+        `<div class="pcard"><div class="skel" style="aspect-ratio:1/1;border-radius:0"></div><div class="pc-body"><div class="skel l1"></div><div class="skel l2"></div></div></div>`).join('');
+      return head + `<div class="shop-grid">${sk}</div>`;
+    }
+    const cards = (ctx.state.products || []).map(p => `
+      <button class="pcard" type="button" onclick="openProduct(${p.id})" aria-label="${p.name}, ${money(p.price)}">
+        <img src="${p.image}" alt="${p.name}" loading="lazy">
+        <div class="pc-body"><div class="pc-name">${p.name}</div><div class="pc-price">${money(p.price)}</div></div>
+      </button>`).join('');
+    return head + `<div class="list"><div class="shop-grid">${cards}</div></div>`;
+  },
+});
+
+Router.registerScreen('product', {
+  title: 'Product', links: ['cart', 'catalog'],
+  render: (ctx) => {
+    const p = productById(ctx.state.selected) || (ctx.state.products || [])[0];
+    if (!p) return `<div class="appbar"><button class="navbar-back" onclick="Router.back()">${I.back} Shop</button></div><div class="empty"><div class="t1">No product selected</div></div>`;
+    const big = p.image.replace('w=200&h=200', 'w=600&h=450');
+    const inCart = (ctx.state.cart || []).filter(i => i.id === p.id).length;
+    return `<div class="appbar"><button class="navbar-back" onclick="Router.back()">${I.back} Shop</button></div>
+      <div class="list">
+        <div class="phero"><img src="${big}" alt="${p.name}" loading="lazy"></div>
+        <div class="pdetail">
+          <div class="pd-name">${p.name}</div>
+          <div class="pd-price">${money(p.price)}</div>
+          <div class="pd-desc">Premium build, everyday carry. Ships in 2–3 days with free returns. ${inCart ? `<b>${inCart} in cart.</b>` : ''}</div>
+        </div>
+        <div class="cta-row">
+          <button class="btn-primary" type="button" onclick="addToCart()">${I.cart} Add to cart · ${money(p.price)}</button>
+          <button class="btn-ghost" type="button" onclick="Router.navigate('cart',{mode:'tab'})">View cart (${(ctx.state.cart || []).length})</button>
+        </div>
+      </div>`;
+  },
+});
+
+Router.registerScreen('cart', {
+  title: 'Cart', tab: 'cart', links: ['checkout'],
+  render: (ctx) => {
+    const head = `<div class="appbar"><div class="appbar-title"><h2>Cart</h2></div></div>`;
+    const items = ctx.state.cart || [];
+    if (!items.length) {
+      return head + `<div class="empty">
+        <div class="ico">${I.cart}</div>
+        <div class="t1">Your cart is empty</div>
+        <div class="t2">Browse the shop and add a few things — they'll show up here.</div>
+      </div>`;
+    }
+    const rows = items.map((it, i) => `
+      <div class="cart-row">
+        <img src="${it.image}" alt="${it.name}">
+        <div><div class="cr-name">${it.name}</div><div class="cr-price">${money(it.price)}</div></div>
+        <button class="iconbtn" type="button" aria-label="Remove ${it.name}" onclick="removeFromCart(${i})">${I.trash}</button>
+      </div>`).join('');
+    return head + `<div class="list">${rows}
+      <div class="summary">
+        <div class="srow"><span>Subtotal</span><span>${money(cartTotal())}</span></div>
+        <div class="srow"><span>Shipping</span><span>Free</span></div>
+        <div class="srow total"><span>Total</span><span>${money(cartTotal())}</span></div>
+      </div>
+      <div class="cta-row"><button class="btn-primary" type="button" onclick="Router.navigate('checkout',{mode:'modal'})">${I.check} Checkout</button></div>
+    </div>`;
+  },
+});
+
+Router.registerScreen('checkout', {
+  title: 'Checkout', links: ['catalog'],
+  render: (ctx) => {
+    if (ctx.state.ordered) {
+      return `<div class="order-ok">
+        <div class="ok-ic">${I.check}</div>
+        <div class="ok-t1">Order confirmed</div>
+        <div class="ok-t2">Thanks! We've emailed your receipt. Your order is on its way.</div>
+        <div class="cta-row" style="padding:0"><button class="btn-primary" type="button" onclick="backToShop()">Back to shop</button></div>
+      </div>`;
+    }
+    const items = ctx.state.cart || [];
+    const rows = items.map(it => `<div class="srow"><span>${it.name}</span><span>${money(it.price)}</span></div>`).join('')
+      || `<div class="srow"><span>No items</span><span>${money(0)}</span></div>`;
+    return `<div class="modal-head"><h2>Checkout</h2><div class="sub">Review your order and place it.</div></div>
+      <div class="list">
+        <div class="summary">
+          ${rows}
+          <div class="srow"><span>Shipping</span><span>Free</span></div>
+          <div class="srow total"><span>Total</span><span>${money(cartTotal())}</span></div>
+        </div>
+        <div class="cta-row">
+          <button class="btn-primary" type="button" onclick="placeOrder()">${I.check} Place order · ${money(cartTotal())}</button>
+          <button class="btn-ghost" type="button" onclick="Router.back()">Back to cart</button>
+        </div>
+      </div>`;
+  },
+});
+
+/* ---- action globals ---- */
+function openProduct(id) { state.selected = id; Router.navigate('product', { mode: 'push' }); }
+function addToCart() {
+  const p = productById(state.selected); if (!p) return;
+  state.cart.push({ id: p.id, name: p.name, price: p.price, image: p.image });
+  toast(`Added ${p.name}`);
+  Router.navigate(Router.current().id, { mode: 'replace' }); // refresh "in cart" + count
+}
+function removeFromCart(idx) { state.cart.splice(idx, 1); Router.navigate('cart', { mode: 'replace' }); }
+function placeOrder() { state.ordered = true; Router.navigate('checkout', { mode: 'replace' }); }
+function backToShop() { state.ordered = false; state.cart = []; state.selected = null; Router.navigate('catalog', { mode: 'tab' }); }
+
+/* gesture globals (used if you add swipe rows) */
+function tapRow(id) { openProduct(id); }
+function deleteItem(id) {
+  const idx = (state.cart || []).findIndex(i => i.id === id);
+  if (idx >= 0) state.cart.splice(idx, 1);
+  Router.navigate(Router.current().id, { mode: 'replace' });
+}
+
+function toggleDark() {
+  state.dark = !state.dark;
+  document.querySelectorAll('.phone-screen').forEach(s => s.classList.toggle('dark', state.dark));
+  document.body.classList.toggle('dark-tokens', state.dark);
+  const b = document.getElementById('dark-btn'); b.classList.toggle('on', state.dark); b.textContent = state.dark ? 'Light mode' : 'Dark mode';
+}
+
+/* ---- catalog: render a named screen with temp state ---- */
+function catalogScreen(stateName, screenId) {
+  return withTempState(temp => {
+    switch (stateName) {
+      case 'loading': temp.loading = true; break;
+      case 'empty':   temp.cart = []; break;
+      default: // seed a sample cart so the "cart · default" tile isn't empty
+        if (screenId === 'cart' && !(temp.cart && temp.cart.length)) {
+          temp.cart = (temp.products || []).slice(0, 2).map(p => ({ id: p.id, name: p.name, price: p.price, image: p.image }));
+        }
+    }
+  }, () => {
+    const scr = Router.getScreens()[screenId] || Router.current();
+    return statusBar() + scr.render({ surface: document.body.dataset.surface, theme: 'neutral', state: state, back(){}, navigate(){} });
+  });
+}
+
+/* ---- mount ---- */
+document.getElementById('theme-selector-host').innerHTML = ThemeKit.renderThemeSelector();
+document.getElementById('device-selector-host').innerHTML = renderDeviceSelector();
+mountThemeSelector('neutral');
+mountDeviceSelector('iphone-17-pro-max');
+Router.mountTabBar([
+  { id: 'shop', label: 'Shop', icon: I.home, screen: 'catalog' },
+  { id: 'cart', label: 'Cart', icon: I.cart, screen: 'cart' },
+]);
+Router.mount('screen', 'catalog');
+Flowmap.mount('flowmap-host');
+A11y.mountAudit('a11y-host');
+mountCatalog(catalogScreen);
+window.addEventListener('devicechange', () => Router.navigate(Router.current().id, { mode: 'replace' }));
+window.addEventListener('themechange', e => { const o = ThemeKit.THEMES.find(t => t.id === e.detail.id); document.getElementById('qr-theme').textContent = o ? o.name : e.detail.id; });
+</script>
+</body>
+</html>
