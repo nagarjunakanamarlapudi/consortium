@@ -71,5 +71,10 @@ check "gestures supports long-press" "longPress" "$(cat "$FW/gestures.js" 2>/dev
 check "state-swap keeps withTempState" "function withTempState" "$(cat "$FW/state-swap.js" 2>/dev/null)"
 check "catalog supports data-screen"   "data-screen"            "$(cat "$FW/state-swap.js" 2>/dev/null)"
 
+# ---- Task 7: spec-styles ----
+check "spec-styles has .flowmap" ".flowmap" "$(cat "$FW/spec-styles.css" 2>/dev/null)"
+check "spec-styles has .a11y"    ".a11y"    "$(cat "$FW/spec-styles.css" 2>/dev/null)"
+check "spec-styles keeps .quickref" ".quickref" "$(cat "$FW/spec-styles.css" 2>/dev/null)"
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
