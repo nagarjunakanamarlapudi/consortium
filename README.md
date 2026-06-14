@@ -2,7 +2,7 @@
 
 A Claude Code plugin for **team-style development with a tunable evaluation bar**. Pick how much multi-agent review a change gets — from none, to a self-check, to an expert panel, to a blocking bar-raiser — plus a `debate` mode and a fully autonomous `vibe-coding` mode. All review is grounded in your real repo.
 
-> Status: **alpha** (Stages 0–1). `off` and `self-eval` are live; `experts-eval`, `bar-raiser-eval`, `debate`, and `vibe-coding` are declared and currently run `self-eval` until their stages land.
+> Status: **beta**. `off`, `self-eval`, `experts-eval`, `bar-raiser-eval`, and `vibe-coding` are live. `debate` is the one tier not yet built — selecting it runs `experts-eval` for now.
 
 ## Install
 
@@ -17,10 +17,10 @@ A Claude Code plugin for **team-style development with a tunable evaluation bar*
 |---|---|
 | `off` | Plugin stands down; plain Claude handles the task. |
 | `self-eval` *(default)* | Plan → build → review your own diff → PR. |
-| `experts-eval` | Expert reviewers vet the plan and diff (advisory). *(coming soon)* |
-| `bar-raiser-eval` | Experts + a blocking bar-raiser with rewrite mandates. *(coming soon)* |
-| `debate` | Rival approaches argued, a judge picks the plan. *(coming soon)* |
-| `vibe-coding` | Autonomous bar-raiser-quality run; opens a PR. *(coming soon)* |
+| `experts-eval` | Expert reviewers vet the plan and diff (advisory). |
+| `bar-raiser-eval` | Experts + a blocking bar-raiser with rewrite mandates. |
+| `debate` | Rival approaches argued, a judge picks the plan. *(coming soon — runs `experts-eval` for now)* |
+| `vibe-coding` | Autonomous bar-raiser-quality run; opens a PR. |
 
 ## Usage
 
