@@ -122,5 +122,11 @@ check "SKILL covers web/tablet"   "tablet" "$(cat "$SKILL/SKILL.md" 2>/dev/null)
 check "SKILL documents first-time setup" "design/_framework" "$(cat "$SKILL/SKILL.md" 2>/dev/null)"
 [ "$(head -1 "$SKILL/SKILL.md" 2>/dev/null)" = "---" ] && echo "ok   - SKILL starts with frontmatter" || { echo "FAIL - SKILL frontmatter"; fails=$((fails+1)); }
 
+# ---- Task 13: docs + discoverability ----
+check "skill README exists" "app-interactive-mocks" "$(cat "$SKILL/README.md" 2>/dev/null)"
+check "repo README mentions the skill" "app-interactive-mocks" "$(cat "$ROOT/README.md" 2>/dev/null)"
+check "plugin.json mentions mocks" "mock" "$(cat "$ROOT/.claude-plugin/plugin.json" 2>/dev/null)"
+jeval "JSON.parse(require('fs').readFileSync('$ROOT/.claude-plugin/plugin.json','utf8')); console.log('PLUGIN_JSON_OK')" | grep -q PLUGIN_JSON_OK && echo "ok   - plugin.json valid" || { echo "FAIL - plugin.json invalid JSON"; fails=$((fails+1)); }
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]

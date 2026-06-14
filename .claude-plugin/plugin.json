@@ -1,10 +1,10 @@
 {
   "name": "consortium",
   "displayName": "Consortium",
-  "description": "Team-dev workflow with selectable evaluation tiers (self-eval → experts-eval → bar-raiser-eval), plus debate and autonomous vibe-coding modes — multi-agent review & planning grounded in your repo.",
+  "description": "Team-dev workflow with selectable evaluation tiers, PLUS app-interactive-mocks — generate walkable, multi-surface, Figma-quality interactive UI mocks as a single HTML file per flow.",
   "author": { "name": "Nagarjuna Kanamarlapudi" },
   "license": "MIT",
   "homepage": "https://github.com/nagarjunakanamarlapudi/consortium",
   "repository": "https://github.com/nagarjunakanamarlapudi/consortium",
-  "keywords": ["code-review", "multi-agent", "workflow", "consortium", "bar-raiser", "subagents"]
+  "keywords": ["code-review", "multi-agent", "workflow", "consortium", "bar-raiser", "subagents", "design", "mocks", "prototype", "ui", "figma"]
 }

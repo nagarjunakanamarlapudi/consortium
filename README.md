@@ -32,6 +32,16 @@ A Claude Code plugin for **team-style development with a tunable evaluation bar*
 
 Then just ask Claude to build something; the `team-dev-workflow` skill announces the active tier and runs the matching process.
 
+## Design mocks — `app-interactive-mocks`
+
+Bundled skill: generate **walkable, multi-screen, Figma-quality** interactive UI mocks (phone/tablet/foldable/web) as one self-contained HTML file per flow — with a 20+ theme gallery, drift-proof state catalog, accessibility audit, and execution-ready spec sections (interaction matrix, widget-tree + navigation mapping).
+
+```bash
+/consortium:app-interactive-mocks            # or just ask: "design mocks for a checkout flow"
+```
+
+See `skills/app-interactive-mocks/README.md`.
+
 ## Requirements
 
 Core tiers work on any recent Claude Code. The dynamic-workflow engine used by the heavier tiers requires **Claude Code v2.1.154+**; where it's unavailable the plugin falls back to plain subagent dispatch.
