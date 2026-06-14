@@ -64,5 +64,12 @@ check "icons exposes window.I" "window.I" "$(cat "$FW/icons.js" 2>/dev/null)"
 check "icons has chevron"  "chevron" "$(cat "$FW/icons.js" 2>/dev/null)"
 check "icons has cart"     "cart:"   "$(cat "$FW/icons.js" 2>/dev/null)"
 
+# ---- Task 6: gestures + state-swap ----
+node --check "$FW/gestures.js"   >/dev/null 2>&1 && echo "ok   - gestures.js parses"   || { echo "FAIL - gestures.js syntax";   fails=$((fails+1)); }
+node --check "$FW/state-swap.js" >/dev/null 2>&1 && echo "ok   - state-swap.js parses" || { echo "FAIL - state-swap.js syntax"; fails=$((fails+1)); }
+check "gestures supports long-press" "longPress" "$(cat "$FW/gestures.js" 2>/dev/null)"
+check "state-swap keeps withTempState" "function withTempState" "$(cat "$FW/state-swap.js" 2>/dev/null)"
+check "catalog supports data-screen"   "data-screen"            "$(cat "$FW/state-swap.js" 2>/dev/null)"
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
