@@ -45,5 +45,16 @@ check "every theme id is defined in CSS" "ALL_THEMES_DEFINED" "$(jeval "
   console.log(missing.length? 'MISSING:'+missing.join(',') : 'ALL_THEMES_DEFINED');
 ")"
 
+# ---- Task 4: frame + devices/surfaces ----
+node --check "$FW/device-selector.js" >/dev/null 2>&1 && echo "ok   - device-selector.js parses" || { echo "FAIL - device-selector.js syntax"; fails=$((fails+1)); }
+check "frame.css styles web surface"      'data-surface="web"'      "$(cat "$FW/frame.css" 2>/dev/null)"
+check "frame.css styles foldable surface" 'data-surface="foldable"' "$(cat "$FW/frame.css" 2>/dev/null)"
+check "frame.css keeps .phone-frame class" ".phone-frame" "$(cat "$FW/frame.css" 2>/dev/null)"
+check "registry has a tablet surface"   "surface: 'tablet'"   "$(cat "$FW/device-selector.js" 2>/dev/null)"
+check "registry has a foldable surface" "surface: 'foldable'" "$(cat "$FW/device-selector.js" 2>/dev/null)"
+check "registry has a web surface"      "surface: 'web'"      "$(cat "$FW/device-selector.js" 2>/dev/null)"
+check "applyDevice sets data-surface"   "dataset.surface"     "$(cat "$FW/device-selector.js" 2>/dev/null)"
+checkge "registry has >=15 devices" 15 "$(jeval "console.log(Object.keys(require('$FW/device-selector.js').DEVICES).length)")"
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
