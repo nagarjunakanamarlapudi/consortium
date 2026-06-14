@@ -115,5 +115,12 @@ check "example registers >=3 screens"  "SCREENS_OK" "$(c=$(grep -c 'registerScre
 check "example uses real images"       "images.unsplash.com"     "$(cat "$SKILL/examples/shop-flow.html" 2>/dev/null)"
 check "example has no TODO markers"    "NO_TODO" "$(grep -qi 'TODO' "$SKILL/examples/shop-flow.html" && echo HAS_TODO || echo NO_TODO)"
 
+# ---- Task 12: SKILL.md ----
+check "SKILL has frontmatter name" "name: app-interactive-mocks" "$(cat "$SKILL/SKILL.md" 2>/dev/null)"
+check "SKILL description mentions interactive prototype" "interactive prototype" "$(cat "$SKILL/SKILL.md" 2>/dev/null)"
+check "SKILL covers web/tablet"   "tablet" "$(cat "$SKILL/SKILL.md" 2>/dev/null)"
+check "SKILL documents first-time setup" "design/_framework" "$(cat "$SKILL/SKILL.md" 2>/dev/null)"
+[ "$(head -1 "$SKILL/SKILL.md" 2>/dev/null)" = "---" ] && echo "ok   - SKILL starts with frontmatter" || { echo "FAIL - SKILL frontmatter"; fails=$((fails+1)); }
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
