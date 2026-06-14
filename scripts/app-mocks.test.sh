@@ -89,5 +89,11 @@ rcheck "pop removes top"        "a"     '["a","b"]'      '{type:"pop"}'
 rcheck "pop keeps root"         "a"     '["a"]'          '{type:"pop"}'
 rcheck "tab resets to root"     "home"  '["a","b","c"]'  '{type:"tab",id:"home"}'
 
+# ---- Task 9: flowmap ----
+node --check "$FW/flowmap.js" >/dev/null 2>&1 && echo "ok   - flowmap.js parses" || { echo "FAIL - flowmap.js syntax"; fails=$((fails+1)); }
+check "deriveGraph yields nodes" "2" "$(node -e 'const F=require(process.argv[1]); const s={a:{id:"a",links:["b"]},b:{id:"b",links:[]}}; console.log(F.deriveGraph(s).nodes.length)' "$FW/flowmap.js" 2>&1)"
+check "deriveGraph yields edges" "a->b" "$(node -e 'const F=require(process.argv[1]); const s={a:{id:"a",links:["b"]},b:{id:"b",links:[]}}; const g=F.deriveGraph(s); console.log(g.edges.map(e=>e.from+"->"+e.to).join(","))' "$FW/flowmap.js" 2>&1)"
+check "deriveGraph drops dangling edges" "EDGES=0" "$(node -e 'const F=require(process.argv[1]); const s={a:{id:"a",links:["ghost"]}}; console.log("EDGES="+F.deriveGraph(s).edges.length)' "$FW/flowmap.js" 2>&1)"
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
