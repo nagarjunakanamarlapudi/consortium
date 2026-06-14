@@ -968,7 +968,7 @@ check "example uses real images"      "images.unsplash.com"          "$(cat "$SK
 <script>
 /* TODO: seed data */
 const seed = () => ({ items: [], loading: false, dark: false });
-let state = seed();
+var state = seed();   /* var (not let) so the router can read it as a window global */
 
 function statusBar() { return `<div class="status-bar"><span>9:41</span><span class="icons">${I.signal}${I.wifi}${I.battery}</span></div>`; }
 
@@ -1009,7 +1009,7 @@ function catalogScreen(stateName, screenId) {
 /* Mount */
 document.getElementById('theme-selector-host').innerHTML = ThemeKit.renderThemeSelector();
 document.getElementById('device-selector-host').innerHTML = renderDeviceSelector();
-mountThemeSelector('neutral');
+ThemeKit.mountThemeSelector('neutral');
 mountDeviceSelector('iphone-17-pro-max');
 Router.mountTabBar([{ id: 'home', label: 'Home', icon: I.home, screen: 'home' }]);
 Router.mount('screen', 'home');

@@ -265,7 +265,7 @@ const seed = () => ({
   loading: false,
   dark: false,
 });
-let state = seed();
+var state = seed();
 
 /* ---- helpers ---- */
 function statusBar() { return `<div class="status-bar"><span>9:41</span><span class="icons">${I.signal}${I.wifi}${I.battery}</span></div>`; }
@@ -428,7 +428,7 @@ function catalogScreen(stateName, screenId) {
 /* ---- mount ---- */
 document.getElementById('theme-selector-host').innerHTML = ThemeKit.renderThemeSelector();
 document.getElementById('device-selector-host').innerHTML = renderDeviceSelector();
-mountThemeSelector('neutral');
+ThemeKit.mountThemeSelector('neutral');
 mountDeviceSelector('iphone-17-pro-max');
 Router.mountTabBar([
   { id: 'shop', label: 'Shop', icon: I.home, screen: 'catalog' },
