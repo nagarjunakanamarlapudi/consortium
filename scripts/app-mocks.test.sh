@@ -24,5 +24,14 @@ check "skill dir exists" "app-interactive-mocks" "$(ls "$ROOT/skills")"
 
 # (Later tasks append their assertion blocks below this line.)
 
+# ---- Task 2: tokens ----
+check "tokens defines --primary"     "--primary:"  "$(cat "$FW/tokens.css" 2>/dev/null)"
+check "tokens defines --card"        "--card:"     "$(cat "$FW/tokens.css" 2>/dev/null)"
+check "tokens defines --display"     "--display:"  "$(cat "$FW/tokens.css" 2>/dev/null)"
+check "tokens has neutral font"      "system-ui"   "$(cat "$FW/tokens.css" 2>/dev/null)"
+check "tokens has dark block"        ".dark-tokens" "$(cat "$FW/tokens.css" 2>/dev/null)"
+check "tokens is NOT Aadhaa teal"    "" "$(grep -c '#2FA39A' "$FW/tokens.css" 2>/dev/null | grep -x 0 && echo OK_NO_TEAL)"
+check "tokens is NOT Aadhaa amber"   "" "$(grep -c '#F5C443' "$FW/tokens.css" 2>/dev/null | grep -x 0 && echo OK_NO_AMBER)"
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
