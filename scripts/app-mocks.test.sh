@@ -56,5 +56,13 @@ check "registry has a web surface"      "surface: 'web'"      "$(cat "$FW/device
 check "applyDevice sets data-surface"   "dataset.surface"     "$(cat "$FW/device-selector.js" 2>/dev/null)"
 checkge "registry has >=15 devices" 15 "$(jeval "console.log(Object.keys(require('$FW/device-selector.js').DEVICES).length)")"
 
+# ---- Task 5: components + icons ----
+node --check "$FW/icons.js" >/dev/null 2>&1 && echo "ok   - icons.js parses" || { echo "FAIL - icons.js syntax"; fails=$((fails+1)); }
+check "components has .tabbar" ".tabbar" "$(cat "$FW/components.css" 2>/dev/null)"
+check "components has .appbar" ".appbar" "$(cat "$FW/components.css" 2>/dev/null)"
+check "icons exposes window.I" "window.I" "$(cat "$FW/icons.js" 2>/dev/null)"
+check "icons has chevron"  "chevron" "$(cat "$FW/icons.js" 2>/dev/null)"
+check "icons has cart"     "cart:"   "$(cat "$FW/icons.js" 2>/dev/null)"
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
