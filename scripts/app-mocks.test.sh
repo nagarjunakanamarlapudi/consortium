@@ -76,5 +76,18 @@ check "spec-styles has .flowmap" ".flowmap" "$(cat "$FW/spec-styles.css" 2>/dev/
 check "spec-styles has .a11y"    ".a11y"    "$(cat "$FW/spec-styles.css" 2>/dev/null)"
 check "spec-styles keeps .quickref" ".quickref" "$(cat "$FW/spec-styles.css" 2>/dev/null)"
 
+# ---- Task 8: router ----
+# rcheck: invoke the pure reducer via node, avoiding bash brace-expansion on {..,.}
+rcheck() { # rcheck "desc" "expected" 'stack_json' 'action_json'
+  local js="const R=require(\"$FW/router.js\"); console.log(R._reduce($3,$4).join(\",\"));"
+  check "$1" "$2" "$(node -e "$js" 2>&1)"
+}
+node --check "$FW/router.js" >/dev/null 2>&1 && echo "ok   - router.js parses" || { echo "FAIL - router.js syntax"; fails=$((fails+1)); }
+rcheck "push appends to stack"  "a,b"   '["a"]'         '{type:"push",id:"b"}'
+rcheck "replace swaps top"      "a,c"   '["a","b"]'     '{type:"replace",id:"c"}'
+rcheck "pop removes top"        "a"     '["a","b"]'      '{type:"pop"}'
+rcheck "pop keeps root"         "a"     '["a"]'          '{type:"pop"}'
+rcheck "tab resets to root"     "home"  '["a","b","c"]'  '{type:"tab",id:"home"}'
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
