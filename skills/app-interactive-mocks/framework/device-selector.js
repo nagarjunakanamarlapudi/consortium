@@ -98,11 +98,15 @@ const DEVICES = {
   'ipad-mini': { name: 'iPad mini', os: 'ios', family: 'ipad', surface: 'tablet',
     width: 744, height: 1133, radius: 18, notch: { type: 'none' }, bottom: 'indicator', statusH: 24, bottomH: 20 },
 
-  /* ---------- Foldables (open) ---------- */
-  'galaxy-z-fold': { name: 'Galaxy Z Fold (open)', os: 'android', family: 'fold', surface: 'foldable',
+  /* ---------- Foldables (open + cover) ---------- */
+  'galaxy-z-fold': { name: 'Galaxy Z Fold (open)', os: 'android', family: 'fold', surface: 'foldable', fold: 'open',
     width: 884, height: 1104, radius: 18, notch: { type: 'hole', w: 4, top: 12 }, bottom: 'gesture-bar', statusH: 28, bottomH: 24 },
-  'pixel-fold': { name: 'Pixel Fold (open)', os: 'android', family: 'fold', surface: 'foldable',
+  'galaxy-z-fold-cover': { name: 'Galaxy Z Fold (cover)', os: 'android', family: 'fold', surface: 'foldable', fold: 'closed',
+    width: 374, height: 880, radius: 24, notch: { type: 'hole', w: 5, top: 12 }, bottom: 'gesture-bar', statusH: 28, bottomH: 24 },
+  'pixel-fold': { name: 'Pixel Fold (open)', os: 'android', family: 'fold', surface: 'foldable', fold: 'open',
     width: 840, height: 1080, radius: 18, notch: { type: 'hole', w: 4, top: 12 }, bottom: 'gesture-bar', statusH: 28, bottomH: 24 },
+  'pixel-fold-cover': { name: 'Pixel Fold (cover)', os: 'android', family: 'fold', surface: 'foldable', fold: 'closed',
+    width: 372, height: 800, radius: 20, notch: { type: 'hole', w: 5, top: 12 }, bottom: 'gesture-bar', statusH: 28, bottomH: 24 },
 
   /* ---------- Web breakpoints ---------- */
   'web-mobile':  { name: 'Web · 390', os: 'web', family: 'web', surface: 'web', width: 390,  height: 760, radius: 0, notch: { type: 'none' }, bottom: 'none', statusH: 0, bottomH: 0 },
@@ -135,6 +139,7 @@ function applyDevice(deviceId) {
   body.dataset.bottom = d.bottom;
   body.dataset.os = d.os;
   body.dataset.surface = d.surface || 'phone';
+  if (d.surface === 'foldable') body.dataset.fold = d.fold || 'open'; else delete body.dataset.fold;
   // emit event so feature pages can re-render device-dependent spec values
   window.dispatchEvent(new CustomEvent('devicechange', { detail: { id: deviceId, device: d } }));
 }

@@ -47,7 +47,7 @@ Flip surfaces and themes to verify. Lock the spec sections once the playground i
 
 ## Themes
 
-20+ presets in `themes.css` — Material You, iOS, Fluent, Pastel, AMOLED, High-contrast, and more. Live-switch via the control strip. Override `design/_framework/tokens.css` to apply project-specific brand tokens; everything in the playground and spec derives from those tokens automatically.
+24 presets in `themes.css` — branded hues (Indigo, Teal, Emerald, Rose, Amber, Violet, Sky, Orange, Crimson, Cyan, Lime, Fuchsia, Slate) plus named aesthetics (Material You, iOS, Nord, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, One Dark), each with light + dark variants. Live-switch via the control strip. Override `design/_framework/tokens.css` to apply project-specific brand tokens; everything in the playground and spec derives from those tokens automatically.
 
 ## Surfaces
 
@@ -55,10 +55,10 @@ Flip surfaces and themes to verify. Lock the spec sections once the playground i
 
 | Surface | Examples |
 |---|---|
-| `phone` | iPhone 17 Pro Max (440×956 pt default), Pixel 9 Pro, Galaxy S25 |
-| `tablet` | iPad Pro 13″, Galaxy Tab S10 Ultra, Pixel Tablet |
-| `foldable` | Galaxy Z Fold 6 (cover + unfolded), Pixel 9 Pro Fold |
-| `web` | 1280 px desktop breakpoint |
+| `phone` | iPhone 17 Pro Max (440×956 pt default) → SE, Pixel 9 Pro/9, Galaxy S25 Ultra/S25 |
+| `tablet` | iPad Pro 13″, iPad Pro 11″, iPad mini |
+| `foldable` | Galaxy Z Fold (open + cover), Pixel Fold (open + cover) |
+| `web` | 390 / 768 / 1280 / 1440 px breakpoints |
 
 Switch surfaces in the control strip; the frame and layout adapt automatically.
 
@@ -66,11 +66,9 @@ Switch surfaces in the control strip; the frame and layout adapt automatically.
 
 `a11y.js` runs a live audit panel covering:
 
-- **Contrast** — WCAG 2.1 AA/AAA ratio check for all text/background pairs
-- **Tap targets** — flags elements smaller than 44×44 pt
-- **Dynamic type** — verifies text scales with token-based font sizes
-- **Semantics** — checks for `aria-label` / `role` on interactive elements
-- **Focus order** — traces keyboard/focus traversal path
+- **Contrast** — WCAG 2.2 AA/AAA ratio check for the active theme's key text/background pairs (auto-computed; recomputes on theme switch)
+- **Tap targets** — flags rendered interactive elements smaller than 44×44 pt (auto-computed)
+- **Semantics, focus order & dynamic type** — a guided checklist to complete per mock (role/label/hint, traversal order, text-scale behaviour, reduced-motion fallback)
 
 ## Example
 

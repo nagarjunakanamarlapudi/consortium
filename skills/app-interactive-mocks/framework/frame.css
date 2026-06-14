@@ -141,10 +141,11 @@ body[data-surface="foldable"][data-fold="open"] .phone-screen {
 
 /* web: browser chrome (traffic lights + URL bar) above the screen */
 body[data-surface="web"] .phone-frame { border-radius: 10px; border-width: 0; box-shadow: var(--shadow-card); overflow: hidden; }
-body[data-surface="web"] .phone-screen { border-radius: 0; }
+body[data-surface="web"] .phone-screen { border-radius: 0; top: 38px; left: 0; right: 0; bottom: 0; }
 body[data-surface="web"] .phone-frame::before {
-  content: "";
-  display: block; height: 38px; background: var(--hover);
+  content: ""; display: block;
+  position: absolute; top: 0; left: 0; right: 0; transform: none;   /* full-width bar, not the centered notch */
+  height: 38px; background: var(--hover); z-index: 6;
   border-bottom: 1px solid var(--border);
   background-image:
     radial-gradient(circle 5px at 16px 19px, #ff5f57 50%, transparent 51%),
