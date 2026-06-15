@@ -15,9 +15,9 @@ One file at `design/<flow>.html` containing:
 
 ## Framework files
 
-13 files copied to `design/_framework/`:
+14 files copied to `design/_framework/`:
 
-`tokens.css` · `themes.css` · `theme-selector.js` · `frame.css` · `device-selector.js` · `components.css` · `spec-styles.css` · `router.js` · `flowmap.js` · `a11y.js` · `state-swap.js` · `gestures.js` · `icons.js`
+`tokens.css` · `themes.css` · `theme-selector.js` · `frame.css` · `device-selector.js` · `components.css` · `spec-styles.css` · `router.js` · `flowmap.js` · `a11y.js` · `state-swap.js` · `gestures.js` · `icons.js` · `bundle.mjs`
 
 ## Quick workflow
 
@@ -36,14 +36,23 @@ Optionally auto-detect tokens from `theme.dart`, `tailwind.config.(js|ts)`, `tok
 cp "${CLAUDE_PLUGIN_ROOT}/skills/app-interactive-mocks/template.html" design/<flow>.html
 ```
 
-**Iterate, playground first.** Register screens with `Router.registerScreen`, wire links and tabs, then open the file in a browser after each change:
+**Iterate, playground first.** Register screens with `Router.registerScreen`, wire links and tabs, then re-check the render after each change. **Serve over a local server — don't use `file://`:**
 
 ```bash
-open design/<flow>.html     # macOS
-# or drive the file:// URL with a browser/Playwright tool
+python3 -m http.server -d design 8753
+# then open / screenshot http://localhost:8753/<flow>.html
 ```
 
-Flip surfaces and themes to verify. Lock the spec sections once the playground is stable.
+Why not `file://`? A page opened directly from disk is sandboxed by browsers (and by the Playwright/Chrome MCP tools) from loading the external `_framework/*` files, so it renders unstyled with no JavaScript. Flip surfaces and themes to verify. Lock the spec sections once the playground is stable.
+
+**Bundle for delivery.** The authored `design/<flow>.html` references the external `_framework/*` files, so it only renders over http and looks broken on a `file://` double-click. Produce the portable, self-contained artifact:
+
+```bash
+node design/_framework/bundle.mjs design/<flow>.html
+# -> design/<flow>.standalone.html  (all CSS/JS inlined; CDN fonts kept)
+```
+
+Hand off the `.standalone.html`: it opens by double-click, shares as a single file, and works offline.
 
 ## Themes
 

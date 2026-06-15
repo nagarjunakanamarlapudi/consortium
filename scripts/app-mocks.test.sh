@@ -128,5 +128,19 @@ check "repo README mentions the skill" "app-interactive-mocks" "$(cat "$ROOT/REA
 check "plugin.json mentions mocks" "mock" "$(cat "$ROOT/.claude-plugin/plugin.json" 2>/dev/null)"
 jeval "JSON.parse(require('fs').readFileSync('$ROOT/.claude-plugin/plugin.json','utf8')); console.log('PLUGIN_JSON_OK')" | grep -q PLUGIN_JSON_OK && echo "ok   - plugin.json valid" || { echo "FAIL - plugin.json invalid JSON"; fails=$((fails+1)); }
 
+# ---- Task 14: bundle (self-contained, double-clickable delivery) ----
+node --check "$FW/bundle.mjs" >/dev/null 2>&1 && echo "ok   - bundle.mjs parses" || { echo "FAIL - bundle.mjs syntax"; fails=$((fails+1)); }
+check "SKILL documents bundling"     "bundle.mjs"       "$(cat "$SKILL/SKILL.md" 2>/dev/null)"
+check "SKILL ships .standalone.html" ".standalone.html" "$(cat "$SKILL/SKILL.md" 2>/dev/null)"
+check "SKILL warns off file://"      "file://"          "$(cat "$SKILL/SKILL.md" 2>/dev/null)"
+check "README documents bundling"    "bundle.mjs"       "$(cat "$SKILL/README.md" 2>/dev/null)"
+# functional: bundling the example inlines every local asset, leaving zero local css/js refs
+BTMP="$(mktemp -t mockbundle).html"
+node "$FW/bundle.mjs" "$SKILL/examples/shop-flow.html" "$BTMP" >/dev/null 2>&1
+check "bundle inlines framework JS" "deriveGraph" "$(cat "$BTMP" 2>/dev/null)"
+brefs="$(grep -cE '(href|src)="[^"]*\.(css|js)"' "$BTMP" 2>/dev/null)"; brefs="${brefs:-99}"
+[ "$brefs" -eq 0 ] 2>/dev/null && echo "ok   - bundle leaves 0 local css/js refs" || { echo "FAIL - bundle leaves $brefs local css/js ref(s)"; fails=$((fails+1)); }
+rm -f "$BTMP"
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
