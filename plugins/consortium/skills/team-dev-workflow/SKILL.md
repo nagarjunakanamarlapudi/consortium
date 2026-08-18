@@ -1,6 +1,12 @@
 ---
 name: team-dev-workflow
-description: Use whenever the user asks to build, add, implement, change, refactor, design, fix, or ship something. Resolves the active Consortium tier and applies the matching Codex-native planning and review workflow. Skip trivial mechanical edits, pure read-only investigation, or a complete patch supplied verbatim.
+description: >-
+  Use when the user asks to build, add, implement, change, refactor, fix, or ship
+  code or another development artifact. Resolves the active Consortium tier and
+  applies the matching Codex-native planning and review workflow. Skip trivial
+  mechanical edits, pure read-only investigation, a complete patch supplied
+  verbatim, and direct requests for interactive/clickable app mocks or
+  prototypes; use app-interactive-mocks for those design deliverables.
 ---
 
 # Consortium — Codex team-dev workflow
@@ -32,6 +38,9 @@ The banner is required. Print it before any work governed by this skill.
 
 ## 1. Apply the common posture
 
+- If the requested deliverable is an interactive/clickable app mock or
+  prototype, stop this skill and use `app-interactive-mocks`; do not run the
+  team-dev tier workflow for the mock itself.
 - First classify genuinely trivial work: a rename, formatting, a docs/comment
   tweak, a version bump, or a one-line change with no behavior change. Make it
   directly and stop; the tier is a ceiling, not a quota.
@@ -40,8 +49,8 @@ The banner is required. Print it before any work governed by this skill.
 - Escalate if the discovered work is materially larger or riskier than the
   selected tier.
 - The controller performs implementation directly. Reviewer subagents are
-  read-only. Only `vibe-coding` may dispatch a write-capable implementation
-  subagent, and only over explicitly assigned files.
+  read-only. `vibe-coding` is the only route allowed to delegate writes; every
+  other route keeps implementation in the controller.
 
 ## 2. Route by tier
 
@@ -64,16 +73,17 @@ the task normally.
 1. Draft a grounded, concrete plan.
 2. Read [`references/codex-reviewers.md`](references/codex-reviewers.md), then
    dispatch native Codex subagents with its `spec-clarity` and
-   `domain-conventions` prompts. They must remain read-only. Dispatch matching
-   project-local plan reviewers too when repository instructions define them.
+   `domain-conventions` prompts. They must remain read-only. Apply that file's
+   Codex-native project-reviewer discovery policy too.
 3. Resolve blocking and important plan findings. Present the vetted plan and
    wait for the user's explicit approval before editing.
 4. Implement directly; do not delegate implementation to a write-capable
    subagent.
 5. Dispatch the `spec-compliance` prompt as the first read-only diff gate. Once
    compliant, dispatch the `code-quality`, `domain-conventions`, and
-   `simplifier` prompts, plus conditional and project-local reviewers selected
-   by `references/reviewer-registry.md`. Run independent reviews in parallel.
+   `simplifier` prompts. Select conditional and project-local reviewers using
+   the Codex-native policy in `references/codex-reviewers.md`, and run
+   independent reviews in parallel.
 6. Fix blocking and important findings, rerun affected tests, and ask the
    relevant reviewers to re-check the revised diff. Synthesize results and
    ship as the repository workflow requires.
@@ -84,8 +94,8 @@ Run `experts-eval` with two additions:
 
 1. Before requesting plan approval, dispatch the read-only `bar-raiser` prompt
    on the plan. Apply rewrite mandates and repeat for at most the task's stated
-   review limit, or three rounds when none is stated. Request approval only
-   after it accepts with rigor ≥4.
+   review limit, or three rounds when none is stated. Request the user's
+   explicit approval only after it accepts with rigor ≥4.
 2. After the advisory diff review, dispatch the read-only `bar-raiser` prompt
    on the diff. Do not ship while its verdict is `reject`; surface any mandates
    that remain after the review limit.

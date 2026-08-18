@@ -1,24 +1,51 @@
 # Codex reviewer prompts
 
-This file adapts Consortium's reviewer roster to native Codex subagents. The
-selection policy remains canonical in
-[`reviewer-registry.md`](reviewer-registry.md); these prompts define how a
-selected role reviews. They are prompts, not packaged agent definitions.
+This file is the Codex-native reviewer selection policy and prompt catalog.
+Create native Codex subagents for selected prompts; these are prompt roles, not
+packaged agent definitions. The adjacent `reviewer-registry.md` is shared
+Claude compatibility content. Its named agents, `build.js`, `.claude/agents`
+discovery, and Claude Agent-tool instructions are not executable Codex policy.
 
-Use this mapping when reading the shared registry:
+## Codex-native selection policy
 
-| Registry role | Prompt section |
-|---|---|
-| `consortium:spec-clarity-reviewer` | `spec-clarity` |
-| `consortium:domain-conventions-reviewer` | `domain-conventions` |
-| `consortium:spec-compliance-reviewer` | `spec-compliance` |
-| `consortium:code-quality-reviewer` | `code-quality` |
-| `consortium:simplifier` | `simplifier` |
-| `consortium:bar-raiser` | `bar-raiser` |
-| `consortium:security-reviewer` | `security` |
-| `consortium:cicd-reviewer` | `cicd` |
-| `consortium:iac-change-reviewer` | `iac` |
-| `consortium:test-coverage-reviewer` | `test-coverage` |
+At `experts-eval` and above, always select `spec-clarity` and
+`domain-conventions` for the plan. For the diff, run `spec-compliance` first as
+a gate; after it passes, always select `code-quality`, `domain-conventions`,
+and `simplifier`. Add `bar-raiser` at both checkpoints for
+`bar-raiser-eval` and `vibe-coding`.
+
+After reading the approved plan, changed paths, and diff, add every matching
+conditional prompt:
+
+| Change trigger | Prompt | Checkpoint |
+|---|---|---|
+| Authentication, authorization, crypto, secrets, untrusted input or validation, deserialization, outbound URLs, filesystem paths, or command construction | `security` | diff |
+| CI/CD definitions or deployment-pipeline automation, including `.github/workflows/**`, `.gitlab-ci.yml`, `.circleci/**`, and `Jenkinsfile` | `cicd` | diff |
+| Infrastructure as code, including Terraform, CDK, Pulumi, CloudFormation, or repository `infra/**` changes | `iac` | diff |
+| Non-trivial logic or behavior changes, including API behavior, state transitions, scripts, or automation | `test-coverage` | diff |
+
+Triggers are cumulative: dispatch all matches in parallel after the
+`spec-compliance` gate. Do not select `test-coverage` for docs-only changes,
+renames, formatting, or other no-behavior-change edits.
+
+### Codex project-reviewer discovery
+
+1. Read applicable `AGENTS.md` instructions and inspect `.codex/agents/*.toml`
+   when that project directory exists.
+2. Select a project reviewer only when its description explicitly reviews or
+   audits a plan, diff, or code; its documented trigger matches this change;
+   and its configured tool/sandbox policy is read-only. Skip writers,
+   implementers, deployers, and ambiguous configurations.
+3. Route plan/spec reviewers to the plan checkpoint and diff/code reviewers
+   after `spec-compliance`. Dispatch independent matches in parallel using the
+   project's Codex-native reviewer configuration plus the mandatory boundary
+   below.
+4. If repository instructions describe a review focus but provide no eligible
+   read-only Codex agent configuration, create a fresh native Codex reviewer
+   subagent with that focus and the mandatory boundary. Do not invoke a bare
+   Claude agent name or translate Claude tool permissions into write access.
+5. Fold findings into the same blocking/important fix and re-review loop as
+   the packaged prompts.
 
 ## Mandatory boundary for every reviewer
 

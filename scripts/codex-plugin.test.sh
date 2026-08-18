@@ -124,14 +124,37 @@ else
   fail "effort skill does not invoke the canonical package script"
 fi
 
-if grep -q 'bash "$PLUGIN_ROOT/scripts/effort.sh" --resolve' "$workflow_skill" 2>/dev/null \
-  && grep -q 'codex-reviewers.md' "$workflow_skill" 2>/dev/null \
-  && grep -qi 'read-only' "$workflow_skill" 2>/dev/null \
-  && grep -qi 'explicit approval' "$workflow_skill" 2>/dev/null \
-  && grep -q 'vibe-coding' "$workflow_skill" 2>/dev/null; then
-  ok "workflow skill carries the Codex tier and reviewer contract"
+if python3 - "$workflow_skill" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+text = Path(sys.argv[1]).read_text()
+frontmatter = text.split("---", 2)[1]
+tiers = ("off", "self-eval", "experts-eval", "bar-raiser-eval", "debate", "vibe-coding")
+sections = {}
+for tier in tiers:
+    match = re.search(rf"^### `{re.escape(tier)}`\n(.*?)(?=^### `|^## |\Z)", text, re.MULTILINE | re.DOTALL)
+    assert match, f"missing route: {tier}"
+    sections[tier] = match.group(1)
+
+assert "explicit approval" in sections["self-eval"]
+assert "explicit approval" in sections["experts-eval"]
+assert "explicit approval" in sections["bar-raiser-eval"]
+assert "run `experts-eval`" in sections["debate"]
+assert "stop this workflow" in sections["off"]
+assert "no plan-approval gate" in sections["vibe-coding"]
+permission = re.compile(r"dispatch a native write-capable implementation\s+subagent")
+assert permission.search(sections["vibe-coding"])
+assert all(not permission.search(sections[tier]) for tier in tiers if tier != "vibe-coding")
+assert "`vibe-coding` is the only route allowed to delegate writes" in text
+assert "direct requests for interactive/clickable app mocks" in frontmatter
+assert "app-interactive-mocks" in frontmatter
+PY
+then
+  ok "workflow skill carries all tier, approval, delegation, and mock-routing contracts"
 else
-  fail "workflow skill is missing Codex tier or reviewer wiring"
+  fail "workflow skill is missing a tier, approval, delegation, or mock-routing contract"
 fi
 
 if ! grep -Eq 'CLAUDE_PLUGIN_ROOT|EnterPlanMode|ExitPlanMode|Workflow\(' "$effort_skill" "$workflow_skill" 2>/dev/null; then
@@ -140,11 +163,20 @@ else
   fail "Codex wrapper contains a Claude-only control"
 fi
 
-if grep -q 'You are a read-only reviewer' "$PACKAGE/skills/team-dev-workflow/references/codex-reviewers.md" 2>/dev/null \
-  && grep -q 'The only write-capable subagent' "$PACKAGE/skills/team-dev-workflow/references/codex-reviewers.md" 2>/dev/null; then
-  ok "reviewer prompts enforce the Codex read-only boundary"
+reviewers="$PACKAGE/skills/team-dev-workflow/references/codex-reviewers.md"
+if grep -q 'You are a read-only reviewer' "$reviewers" 2>/dev/null \
+  && grep -q 'Codex-native selection policy' "$reviewers" 2>/dev/null \
+  && grep -q 'not executable Codex policy' "$reviewers" 2>/dev/null \
+  && grep -q '\.codex/agents/\*\.toml' "$reviewers" 2>/dev/null \
+  && grep -q 'Authentication, authorization' "$reviewers" 2>/dev/null \
+  && grep -q 'CI/CD definitions' "$reviewers" 2>/dev/null \
+  && grep -q 'Infrastructure as code' "$reviewers" 2>/dev/null \
+  && grep -q 'Non-trivial logic or behavior changes' "$reviewers" 2>/dev/null \
+  && grep -q 'Triggers are cumulative' "$reviewers" 2>/dev/null \
+  && ! grep -q 'reviewer-registry.md' "$workflow_skill" 2>/dev/null; then
+  ok "reviewer prompts enforce Codex-native selection and read-only boundaries"
 else
-  fail "reviewer prompts do not enforce the Codex read-only boundary"
+  fail "reviewer prompts lack Codex-native selection or read-only boundaries"
 fi
 
 if grep -q 'CONSORTIUM_PLUGIN_ROOT="$PLUGIN_ROOT"' "$mock_skill" 2>/dev/null \
