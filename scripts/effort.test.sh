@@ -1,45 +1,97 @@
 #!/usr/bin/env bash
-# Tests for effort.sh. Runs it in an isolated temp state dir with a controlled env.
+# State-contract tests for effort.sh. Each case uses an isolated user home.
 set -u
+
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/effort.sh"
+TEST_ROOT="$(mktemp -d)"
+TEST_HOME="$TEST_ROOT/home"
+TEST_REPO="$TEST_ROOT/repo"
+WORKSPACE="$TEST_REPO"
+OTHER_WORKTREE="$TEST_ROOT/other-worktree"
+NON_GIT_WORKSPACE="$TEST_ROOT/non-git"
 fails=0
-check() { # check "desc" "expected substring" "actual"
+
+cleanup() { rm -rf "$TEST_ROOT"; }
+trap cleanup EXIT
+
+check() { # check "description" "expected" "actual"
+  if [ "$3" = "$2" ]; then
+    printf 'ok   - %s\n' "$1"
+  else
+    printf 'FAIL - %s\n      expected: %s\n      got: %s\n' "$1" "$2" "$3"
+    fails=$((fails + 1))
+  fi
+}
+
+check_contains() { # check_contains "description" "expected substring" "actual"
   if printf '%s' "$3" | grep -qF "$2"; then
     printf 'ok   - %s\n' "$1"
   else
-    printf 'FAIL - %s\n      expected to contain: %s\n      got: %s\n' "$1" "$2" "$3"; fails=$((fails+1))
+    printf 'FAIL - %s\n      expected to contain: %s\n      got: %s\n' "$1" "$2" "$3"
+    fails=$((fails + 1))
   fi
 }
-run() { # run with a fresh temp state dir and no global env
-  CONSORTIUM_TIER="" CLAUDE_PLUGIN_DATA="$(mktemp -d)" bash "$SCRIPT" "$@" 2>&1
+
+check_absent() { # check_absent "description" "path"
+  if [ ! -e "$2" ]; then
+    printf 'ok   - %s\n' "$1"
+  else
+    printf 'FAIL - %s\n      unexpected path: %s\n' "$1" "$2"
+    fails=$((fails + 1))
+  fi
 }
-run_with_global() {
-  local g="$1"; shift
-  CONSORTIUM_TIER="$g" CLAUDE_PLUGIN_DATA="$(mktemp -d)" bash "$SCRIPT" "$@" 2>&1
+
+run_in() { # run_in "workspace" "CONSORTIUM_TIER" [effort args...]
+  local workspace="$1"
+  local tier="$2"
+  shift 2
+  (
+    cd "$workspace" || exit 1
+    HOME="$TEST_HOME" CONSORTIUM_TIER="$tier" bash "$SCRIPT" "$@"
+  )
 }
 
-# 1. No state, no global -> built-in default
-check "resolve defaults to self-eval" "self-eval" "$(run --resolve)"
+mkdir -p "$TEST_HOME" "$NON_GIT_WORKSPACE"
+git init -q "$TEST_REPO"
+git -C "$TEST_REPO" config user.email effort-test@example.com
+git -C "$TEST_REPO" config user.name 'Effort test'
+touch "$TEST_REPO/README"
+git -C "$TEST_REPO" add README
+git -C "$TEST_REPO" commit -qm 'test fixture'
+git -C "$TEST_REPO" worktree add -q "$OTHER_WORKTREE" -b other-worktree
 
-# 2. Global env is honored when no override
-check "resolve uses global default" "bar-raiser-eval" "$(run_with_global bar-raiser-eval --resolve)"
+# A Git worktree override persists in Git metadata and is private to that worktree.
+run_in "$WORKSPACE" "" debate >/dev/null
+check "Git workspace override persists" "debate" "$(run_in "$WORKSPACE" "" --resolve)"
+check "other Git worktree starts without this override" "self-eval" "$(run_in "$OTHER_WORKTREE" "" --resolve)"
 
-# 3. Setting a tier writes a per-workspace override that --resolve then returns
-DIR="$(mktemp -d)"
-CONSORTIUM_TIER="" CLAUDE_PLUGIN_DATA="$DIR" bash "$SCRIPT" experts-eval >/dev/null 2>&1
-check "override persists for resolve" "experts-eval" "$(CONSORTIUM_TIER="" CLAUDE_PLUGIN_DATA="$DIR" bash "$SCRIPT" --resolve)"
+# A non-Git override uses the canonical directory hash under Consortium-owned state.
+run_in "$NON_GIT_WORKSPACE" "" off >/dev/null
+non_git_hash="$(cd "$NON_GIT_WORKSPACE" && pwd -P | shasum -a 256 | awk '{print $1}')"
+check "non-Git hashed state persists" "off" "$(run_in "$NON_GIT_WORKSPACE" "" --resolve)"
+check "non-Git state is stored under its hash" "off" "$(cat "$TEST_HOME/.consortium/workspaces/sha256-$non_git_hash/tier")"
 
-# 4. Override beats global default
-check "override beats global" "debate" "$(CONSORTIUM_TIER="self-eval" CLAUDE_PLUGIN_DATA="$DIR" bash "$SCRIPT" debate >/dev/null 2>&1; CONSORTIUM_TIER="self-eval" CLAUDE_PLUGIN_DATA="$DIR" bash "$SCRIPT" --resolve)"
+# A global assignment creates a user default and clears only the active override.
+run_in "$OTHER_WORKTREE" "" debate >/dev/null
+run_in "$WORKSPACE" "" bar-raiser-eval --global >/dev/null
+check "user default persists" "bar-raiser-eval" "$(run_in "$WORKSPACE" "" --resolve)"
+check "other worktree retains override" "debate" "$(run_in "$OTHER_WORKTREE" "" --resolve)"
+check_absent "Claude settings stays absent" "$TEST_HOME/.claude/settings.json"
 
-# 5. Invalid tier is rejected (non-zero exit + message)
-out="$(run bogus-tier)"; rc=$?
-check "invalid tier rejected" "Invalid tier" "$out"
-if [ "$rc" -ne 0 ]; then printf 'ok   - invalid tier exits non-zero (rc=%s)\n' "$rc"; else printf 'FAIL - invalid tier should exit non-zero (rc=%s)\n' "$rc"; fails=$((fails+1)); fi
+# An explicit environment value overrides the user default when no workspace override exists.
+check "environment beats user default" "experts-eval" "$(run_in "$WORKSPACE" "experts-eval" --resolve)"
 
-# 6. Show (no args) reports tier and source
-check "show reports source" "built-in default" "$(run)"
+# The existing CLI still rejects invalid tiers and reports the active tier.
+invalid_output="$(run_in "$WORKSPACE" "" bogus-tier 2>&1)"
+invalid_rc=$?
+if [ "$invalid_rc" -ne 0 ] && printf '%s' "$invalid_output" | grep -qF 'Invalid tier'; then
+  printf 'ok   - invalid tier is rejected\n'
+else
+  printf 'FAIL - invalid tier is rejected\n'
+  fails=$((fails + 1))
+fi
+check_contains "show reports active tier" "Consortium tier: bar-raiser-eval (user default)" "$(run_in "$WORKSPACE" "")"
 
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
