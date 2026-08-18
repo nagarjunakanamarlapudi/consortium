@@ -1,0 +1,37 @@
+{
+  "name": "consortium",
+  "version": "0.1.0",
+  "description": "Tiered planning, implementation, and review workflows plus interactive app prototyping.",
+  "author": {
+    "name": "Nagarjuna Kanamarlapudi",
+    "url": "https://github.com/nagarjunakanamarlapudi"
+  },
+  "homepage": "https://github.com/nagarjunakanamarlapudi/consortium",
+  "repository": "https://github.com/nagarjunakanamarlapudi/consortium",
+  "license": "MIT",
+  "keywords": [
+    "code-review",
+    "multi-agent",
+    "workflow",
+    "prototyping"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Consortium",
+    "shortDescription": "Tiered development workflows and app mocks",
+    "longDescription": "Choose a development effort tier, run plan and diff review with native Codex subagents, or create walkable interactive app prototypes.",
+    "developerName": "Nagarjuna Kanamarlapudi",
+    "category": "Development",
+    "capabilities": [
+      "Planning",
+      "Code Review",
+      "Prototyping"
+    ],
+    "websiteURL": "https://github.com/nagarjunakanamarlapudi/consortium",
+    "defaultPrompt": [
+      "Implement this change with the active Consortium workflow.",
+      "Set Consortium effort to experts-eval for this workspace.",
+      "Create a walkable interactive mock for this app flow."
+    ]
+  }
+}
