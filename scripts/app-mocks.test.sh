@@ -142,5 +142,21 @@ brefs="$(grep -cE '(href|src)="[^"]*\.(css|js)"' "$BTMP" 2>/dev/null)"; brefs="$
 [ "$brefs" -eq 0 ] 2>/dev/null && echo "ok   - bundle leaves 0 local css/js refs" || { echo "FAIL - bundle leaves $brefs local css/js ref(s)"; fails=$((fails+1)); }
 rm -f "$BTMP"
 
+# security: a local reference may not traverse outside the flow directory or
+# the packaged framework-assets directory.
+SEC_INPUT="$ROOT/scripts/fixtures/bundle-security/flow/traversal.html"
+SEC_OUT="$(mktemp -t mockbundle-security).html"
+SEC_LOG="$(mktemp -t mockbundle-security).log"
+if node "$FW/bundle.mjs" "$SEC_INPUT" "$SEC_OUT" >"$SEC_LOG" 2>&1; then
+  echo "FAIL - bundle accepted a traversal outside allowed asset roots"
+  fails=$((fails+1))
+elif grep -qi "outside allowed asset roots" "$SEC_LOG"; then
+  echo "ok   - bundle rejects traversal outside allowed asset roots"
+else
+  echo "FAIL - bundle traversal error is not clear"
+  fails=$((fails+1))
+fi
+rm -f "$SEC_OUT" "$SEC_LOG"
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
