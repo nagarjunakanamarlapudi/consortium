@@ -77,9 +77,18 @@ override. Neither operation writes Claude Code or Codex configuration files.
 
 Bundled skill: generate **walkable, multi-screen, Figma-quality** interactive UI mocks (phone/tablet/foldable/web) as one self-contained HTML file per flow — with a 20+ theme gallery, drift-proof state catalog, accessibility audit, and execution-ready spec sections (interaction matrix, widget-tree + navigation mapping).
 
+### Claude Code
+
 ```bash
-/consortium:app-interactive-mocks            # or just ask: "design mocks for a checkout flow"
+/consortium:app-interactive-mocks
 ```
+
+You can also ask, “Design mocks for a checkout flow.”
+
+### Codex
+
+Ask Codex naturally: “Design interactive mocks for a checkout flow.” Codex
+selects `app-interactive-mocks`; Claude slash-command syntax does not apply.
 
 See `skills/app-interactive-mocks/README.md`.
 

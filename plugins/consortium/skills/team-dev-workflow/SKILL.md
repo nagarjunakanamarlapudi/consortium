@@ -11,6 +11,16 @@ description: >-
 
 # Consortium — Codex team-dev workflow
 
+## Pre-route — hand direct interactive mocks to app-interactive-mocks
+
+Before resolving the tier or printing the banner, inspect the requested
+deliverable. If the user directly asks for **"design mocks"**, an
+**"interactive/clickable prototype"**, a **"high-fi mockup"**, a
+**"walkable flow"**, or a similar interactive app mock/prototype, stop this
+skill and use `app-interactive-mocks`. Do not run the team-dev tier workflow for
+the mock itself. Implementing application code from an already approved mock
+still uses this team-dev workflow.
+
 ## 0. Resolve and announce the active tier
 
 Before doing task work, run:
@@ -38,9 +48,6 @@ The banner is required. Print it before any work governed by this skill.
 
 ## 1. Apply the common posture
 
-- If the requested deliverable is an interactive/clickable app mock or
-  prototype, stop this skill and use `app-interactive-mocks`; do not run the
-  team-dev tier workflow for the mock itself.
 - First classify genuinely trivial work: a rename, formatting, a docs/comment
   tweak, a version bump, or a one-line change with no behavior change. Make it
   directly and stop; the tier is a ceiling, not a quota.

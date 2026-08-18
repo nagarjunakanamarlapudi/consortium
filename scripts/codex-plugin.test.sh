@@ -116,6 +116,7 @@ fi
 
 effort_skill="$PACKAGE/skills/team-dev-effort/SKILL.md"
 workflow_skill="$PACKAGE/skills/team-dev-workflow/SKILL.md"
+claude_workflow_skill="$ROOT/skills/team-dev-workflow/SKILL.md"
 mock_skill="$PACKAGE/skills/app-interactive-mocks/SKILL.md"
 
 if grep -q 'bash "$PLUGIN_ROOT/scripts/effort.sh" --resolve' "$effort_skill" 2>/dev/null; then
@@ -124,13 +125,15 @@ else
   fail "effort skill does not invoke the canonical package script"
 fi
 
-if python3 - "$workflow_skill" <<'PY'
+if python3 - "$workflow_skill" "$claude_workflow_skill" <<'PY'
 import re
 import sys
 from pathlib import Path
 
 text = Path(sys.argv[1]).read_text()
 frontmatter = text.split("---", 2)[1]
+claude_text = Path(sys.argv[2]).read_text()
+claude_frontmatter = claude_text.split("---", 2)[1]
 tiers = ("off", "self-eval", "experts-eval", "bar-raiser-eval", "debate", "vibe-coding")
 sections = {}
 for tier in tiers:
@@ -148,13 +151,24 @@ permission = re.compile(r"dispatch a native write-capable implementation\s+subag
 assert permission.search(sections["vibe-coding"])
 assert all(not permission.search(sections[tier]) for tier in tiers if tier != "vibe-coding")
 assert "`vibe-coding` is the only route allowed to delegate writes" in text
-assert "direct requests for interactive/clickable app mocks" in frontmatter
-assert "app-interactive-mocks" in frontmatter
+
+mock_triggers = ("design mocks", "interactive/clickable prototype", "high-fi mockup", "walkable flow")
+for host_text, host_frontmatter, effort_command in (
+    (text, frontmatter, 'bash "$PLUGIN_ROOT/scripts/effort.sh" --resolve'),
+    (claude_text, claude_frontmatter, 'bash "${CLAUDE_PLUGIN_ROOT}/scripts/effort.sh" --resolve'),
+):
+    normalized_frontmatter = " ".join(host_frontmatter.split())
+    assert "direct requests for interactive/clickable app mocks" in normalized_frontmatter
+    assert "use app-interactive-mocks" in normalized_frontmatter
+    assert "refactor, design, fix" not in normalized_frontmatter
+    assert all(trigger in host_text for trigger in mock_triggers)
+    assert "use `app-interactive-mocks`" in host_text
+    assert host_text.index("## Pre-route") < host_text.index(effort_command)
 PY
 then
-  ok "workflow skill carries all tier, approval, delegation, and mock-routing contracts"
+  ok "both workflow hosts carry tier, approval, delegation, and pre-banner mock-routing contracts"
 else
-  fail "workflow skill is missing a tier, approval, delegation, or mock-routing contract"
+  fail "workflow host is missing a tier, approval, delegation, or pre-banner mock-routing contract"
 fi
 
 if ! grep -Eq 'CLAUDE_PLUGIN_ROOT|EnterPlanMode|ExitPlanMode|Workflow\(' "$effort_skill" "$workflow_skill" 2>/dev/null; then
@@ -192,6 +206,24 @@ if rg -q 'codex plugin marketplace add nagarjunakanamarlapudi/consortium --ref v
   ok "README documents Claude Code and Codex installation"
 else
   fail "README is missing Claude Code or Codex installation guidance"
+fi
+
+if python3 - "$ROOT/README.md" <<'PY'
+import sys
+from pathlib import Path
+
+readme = Path(sys.argv[1]).read_text()
+mock_docs = readme.split("## Design mocks", 1)[1].split("## Requirements", 1)[0]
+claude_docs = mock_docs.split("### Claude Code", 1)[1].split("### Codex", 1)[0]
+codex_docs = mock_docs.split("### Codex", 1)[1]
+assert "/consortium:app-interactive-mocks" in claude_docs
+assert "/consortium:app-interactive-mocks" not in codex_docs
+assert "Design interactive mocks" in codex_docs
+PY
+then
+  ok "mock invocation docs are accurate for Claude Code and Codex"
+else
+  fail "mock invocation docs mix Claude slash syntax into Codex guidance"
 fi
 
 printf '\n%s failure(s)\n' "$fails"
