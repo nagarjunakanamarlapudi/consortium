@@ -30,7 +30,7 @@ a local path only while developing the plugin itself.
 
 | Tier | What it does |
 |---|---|
-| `off` | Plugin stands down; plain Claude handles the task. |
+| `off` | Plugin stands down; the plain host handles the task. |
 | `self-eval` *(default)* | Plan → build → review your own diff → PR. |
 | `experts-eval` | Expert reviewers vet the plan and diff (advisory). |
 | `bar-raiser-eval` | Experts + a blocking bar-raiser with rewrite mandates. |
