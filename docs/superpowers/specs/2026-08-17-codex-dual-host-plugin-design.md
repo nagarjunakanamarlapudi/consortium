@@ -15,15 +15,34 @@ publication, or new workflow tiers.
 
 ## Architecture
 
-The Consortium repository remains the only source of workflow content. Its
-existing `skills/`, `scripts/`, templates, and assets are canonical. The
-existing `.claude-plugin/` package remains the Claude entry point.
+The Consortium repository remains the only source of workflow content. The
+Codex package at `plugins/consortium/` is self-contained: it owns the canonical
+shared scripts, skills, templates, assets, and reviewer references alongside
+its `.codex-plugin/plugin.json` manifest. A Git subdirectory install can cache
+only that package, so no installed-package symlink may point outside it.
 
-Codex receives a package at `plugins/consortium/` with a
-`.codex-plugin/plugin.json` manifest. Where Codex accepts the same directory
-structure, the package uses relative symlinks to the canonical source. The
-only copied/adapted files are those whose host format differs, such as Codex
-reviewer prompts and small host-launcher wrappers.
+The existing `.claude-plugin/` remains the Claude entry point. Claude-compatible
+root-level files symlink inward to the canonical files in `plugins/consortium/`.
+Only host-specific surfaces remain separate: Claude's workflow, commands, and
+agent definitions; Codex's skill wrappers and reviewer prompts.
+
+```mermaid
+flowchart TB
+  P["plugins/consortium — self-contained installed package"] --> CS["Canonical shared scripts"]
+  P --> CK["Canonical shared mock skill and assets"]
+  P --> CR["Canonical shared reviewer references"]
+
+  Claude["Claude root plugin"] --> LS["skills/app-interactive-mocks — symlink into package"]
+  Claude --> LR["team-dev references — symlink into package"]
+  Claude --> LE["scripts/effort.sh — symlink into package"]
+
+  LS --> CK
+  LR --> CR
+  LE --> CS
+
+  CC["Claude-only workflow, agents, and commands"] --> Claude
+  CX["Codex-only workflow wrappers"] --> P
+```
 
 The repository marketplace at `.agents/plugins/marketplace.json` exposes the
 Codex package at `./plugins/consortium`. It is the marketplace that users add
@@ -100,7 +119,10 @@ Validation must prove:
 
 - the Codex manifest and marketplace JSON parse and pass the plugin validation
   tooling;
-- every package symlink resolves within the checked-out Consortium repository;
+- `plugins/consortium/` contains every file required by a Git-subdirectory
+  installation, with no symlink escaping the package root;
+- each Claude root-level compatibility symlink resolves inward to a canonical
+  file in `plugins/consortium/`;
 - Codex review prompts cover the selected roles and require read-only review
   boundaries, except the explicit `vibe-coding` implementation role;
 - the effort script resolves the same tier under Claude and Codex from Git
