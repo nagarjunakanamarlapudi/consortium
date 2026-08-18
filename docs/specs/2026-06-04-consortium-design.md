@@ -8,6 +8,14 @@
 
 ---
 
+> **Historical design note — superseded for packaging and tier state:** This
+> June design remains the record of the original product intent. For the
+> dual-host package layout, Claude Code and Codex installation, and the
+> host-neutral tier-state locations and precedence, use the
+> [2026-08-17 dual-host plugin design](../superpowers/specs/2026-08-17-codex-dual-host-plugin-design.md).
+
+---
+
 ## 1. Summary & thesis
 
 **Consortium** is an open-source Claude Code plugin that blends two existing pieces of prior work:

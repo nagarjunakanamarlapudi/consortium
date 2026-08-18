@@ -186,5 +186,13 @@ else
   fail "mock skill is not portable across Codex and Claude"
 fi
 
+if rg -q 'codex plugin marketplace add nagarjunakanamarlapudi/consortium --ref v0.1.0' "$ROOT/README.md" \
+  && rg -q 'codex plugin add consortium@consortium' "$ROOT/README.md" \
+  && rg -q 'Claude Code' "$ROOT/README.md"; then
+  ok "README documents Claude Code and Codex installation"
+else
+  fail "README is missing Claude Code or Codex installation guidance"
+fi
+
 printf '\n%s failure(s)\n' "$fails"
 [ "$fails" -eq 0 ]
