@@ -33,16 +33,29 @@ nagarjunakanamarlapudi/consortium --ref v0.1.0`.
 ## Shared behaviour
 
 `scripts/effort.sh` remains the public effort-tier interface. It is refactored
-only enough to use provider-neutral state:
+to use a host-neutral state layout; neither `CLAUDE_PLUGIN_DATA` nor Codex
+plugin-data directories participate in tier resolution.
 
-1. An explicit `CONSORTIUM_DATA_DIR` overrides all defaults.
-2. The active host's plugin-data directory is used when provided.
-3. Otherwise state falls back to `~/.consortium`.
+For a Git worktree, the persistent workspace override is stored at the path
+returned by `git rev-parse --git-path consortium/tier`. Git metadata is private
+to that worktree and never committed. Outside a Git worktree, the script stores
+the override below `~/.consortium/workspaces/`, in a directory named with a
+`sha256-` prefix followed by the SHA-256 hex digest of the canonical working
+directory. The user-wide persistent default is `~/.consortium/default-tier`.
 
-Both hosts therefore resolve workspace and global tier choices from the same
-format. The `--global` option must not modify `~/.claude/settings.json` or a
-Codex global configuration file; it writes Consortium-owned state instead.
-Existing workspace override behaviour remains compatible.
+Both hosts resolve the tier with this fixed precedence:
+
+1. persistent workspace override;
+2. explicit `CONSORTIUM_TIER` environment value, for a temporary one-off or CI
+   override;
+3. persistent user-wide default;
+4. built-in `self-eval` default.
+
+`team-dev-effort TIER` writes the persistent override for the active
+workspace. `team-dev-effort TIER --global` writes the user-wide default and
+removes the persistent override for the active workspace, preserving the
+existing command's reset intent. The `--global` option must not modify
+`~/.claude/settings.json` or a Codex global configuration file.
 
 The workflow wording becomes host-neutral for planning and approvals. Claude
 uses its native planning controls where available; Codex follows its normal
@@ -82,8 +95,11 @@ Validation must prove:
   tooling;
 - every package symlink resolves within the checked-out Consortium repository;
 - Codex agent TOML definitions parse and preserve appropriate sandbox levels;
-- the effort script preserves its current command behaviour under Claude,
-  Codex, and fallback environment variables;
+- the effort script resolves the same tier under Claude and Codex from Git
+  worktree state, non-Git fallback state, `CONSORTIUM_TIER`, user default, and
+  built-in default in the documented precedence order;
+- `--global` affects only Consortium-owned user state and clears only the
+  active workspace override;
 - Claude's existing plugin checks continue to pass;
 - Aadhaa's marketplace JSON resolves the immutable GitHub package and contains
   no local Consortium path.
