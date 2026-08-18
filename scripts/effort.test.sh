@@ -64,6 +64,7 @@ git -C "$TEST_REPO" worktree add -q "$OTHER_WORKTREE" -b other-worktree
 # A Git worktree override persists in Git metadata and is private to that worktree.
 run_in "$WORKSPACE" "" debate >/dev/null
 check "Git workspace override persists" "debate" "$(run_in "$WORKSPACE" "" --resolve)"
+check "workspace override beats environment" "debate" "$(run_in "$WORKSPACE" "experts-eval" --resolve)"
 check "other Git worktree starts without this override" "self-eval" "$(run_in "$OTHER_WORKTREE" "" --resolve)"
 
 # A non-Git override uses the canonical directory hash under Consortium-owned state.
@@ -78,6 +79,7 @@ run_in "$WORKSPACE" "" bar-raiser-eval --global >/dev/null
 check "user default persists" "bar-raiser-eval" "$(run_in "$WORKSPACE" "" --resolve)"
 check "other worktree retains override" "debate" "$(run_in "$OTHER_WORKTREE" "" --resolve)"
 check_absent "Claude settings stays absent" "$TEST_HOME/.claude/settings.json"
+check_absent "Codex state stays absent" "$TEST_HOME/.codex"
 
 # An explicit environment value overrides the user default when no workspace override exists.
 check "environment beats user default" "experts-eval" "$(run_in "$WORKSPACE" "experts-eval" --resolve)"
