@@ -1,0 +1,20 @@
+{
+  "name": "consortium",
+  "interface": {
+    "displayName": "Consortium"
+  },
+  "plugins": [
+    {
+      "name": "consortium",
+      "source": {
+        "source": "local",
+        "path": "./plugins/consortium"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Development"
+    }
+  ]
+}

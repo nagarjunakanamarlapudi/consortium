@@ -17,27 +17,60 @@
    Default output: design/<flow>.standalone.html (next to the input).
    Hand the user the .standalone.html — that is the portable deliverable.
    ========================================================================== */
-import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { dirname, isAbsolute, relative, resolve, sep, win32 } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const input = process.argv[2];
 if (!input) {
   console.error('usage: node bundle.mjs <flow.html> [out.html]');
   process.exit(1);
 }
-const dir = dirname(resolve(input));
-const out = process.argv[3] || resolve(input).replace(/\.html?$/i, '') + '.standalone.html';
+const inputPath = realpathSync(resolve(input));
+const dir = dirname(inputPath);
+const frameworkDir = realpathSync(dirname(fileURLToPath(import.meta.url)));
+const allowedRoots = [dir, frameworkDir];
+const out = process.argv[3] || inputPath.replace(/\.html?$/i, '') + '.standalone.html';
 
 const isRemote = (h) => /^(?:https?:)?\/\//i.test(h) || h.startsWith('data:') || h.startsWith('#');
 const missing = [];
 let inlined = 0;
 
+function isWithin(candidate, root) {
+  const pathFromRoot = relative(root, candidate);
+  return pathFromRoot === '' || (pathFromRoot !== '..' && !pathFromRoot.startsWith(`..${sep}`) && !isAbsolute(pathFromRoot));
+}
+
+function permittedLocalPath(href) {
+  const assetPath = href.split(/[?#]/)[0];
+  if (isAbsolute(assetPath) || win32.isAbsolute(assetPath)) {
+    throw new Error(`Refusing to inline local asset outside allowed asset roots: ${href}`);
+  }
+
+  const candidate = resolve(dir, assetPath);
+  if (!allowedRoots.some((root) => isWithin(candidate, root))) {
+    throw new Error(`Refusing to inline local asset outside allowed asset roots: ${href}`);
+  }
+
+  try {
+    const realCandidate = realpathSync(candidate);
+    if (!allowedRoots.some((root) => isWithin(realCandidate, root))) {
+      throw new Error(`Refusing to inline local asset outside allowed asset roots: ${href}`);
+    }
+    return realCandidate;
+  } catch (error) {
+    if (error?.code === 'ENOENT') return candidate;
+    throw error;
+  }
+}
+
 function readLocal(href) {
-  try { return readFileSync(resolve(dir, href.split(/[?#]/)[0]), 'utf8'); }
+  const localPath = permittedLocalPath(href);
+  try { return readFileSync(localPath, 'utf8'); }
   catch { missing.push(href); return null; }
 }
 
-let html = readFileSync(input, 'utf8');
+let html = readFileSync(inputPath, 'utf8');
 
 // Inline local stylesheets:  <link rel="stylesheet" href="...">  (CDN fonts kept)
 html = html.replace(/<link\b[^>]*\brel=["']stylesheet["'][^>]*>/gi, (tag) => {

@@ -1,11 +1,29 @@
 ---
 name: team-dev-workflow
-description: Use whenever the user asks to build, add, implement, change, refactor, design, fix, or ship something in this repo. Reads the active Consortium evaluation tier (off|self-eval|experts-eval|bar-raiser-eval|debate|vibe-coding) and runs the matching amount of multi-agent review, announcing it first. Trigger phrases include "build X", "add Y", "implement Z", "refactor", "fix this", "let's ship". Skip for trivial mechanical edits (a rename, formatting, a docs/comment tweak, a version bump, or a one-liner with no behavior change), pure read-only investigation (use the Explore agent), or a complete patch the user pasted to apply verbatim.
+description: >-
+  Use when the user asks to build, add, implement, change, refactor, fix, or ship
+  code or another development artifact in this repo. Reads the active Consortium
+  evaluation tier and runs the matching amount of multi-agent review. Trigger
+  phrases include "build X", "add Y", "implement Z", "refactor", "fix this",
+  and "let's ship". Skip trivial mechanical edits, pure read-only investigation,
+  a complete patch supplied verbatim, and direct requests for
+  interactive/clickable app mocks or prototypes; use app-interactive-mocks for
+  those design deliverables.
 ---
 
 # Consortium — team-dev workflow
 
-## Step 0 — Resolve the active tier and announce it (ALWAYS, before anything else)
+## Pre-route — hand direct interactive mocks to app-interactive-mocks
+
+Before resolving the tier or printing the banner, inspect the requested
+deliverable. If the user directly asks for **"design mocks"**, an
+**"interactive/clickable prototype"**, a **"high-fi mockup"**, a
+**"walkable flow"**, or a similar interactive app mock/prototype, STOP this
+skill and use `app-interactive-mocks`. Do not run the team-dev tier workflow for
+the mock itself. Implementing application code from an already approved mock
+still uses this team-dev workflow.
+
+## Step 0 — Resolve the active tier and announce it (ALWAYS after the pre-route)
 
 Resolve the tier:
 
@@ -27,7 +45,8 @@ Use the matching `<summary>`:
 - `debate` — rival approaches → judge (not in this build; running experts-eval)
 - `vibe-coding` — autonomous: bar-raiser quality, no gates, opens a PR
 
-The banner is load-bearing: if you didn't print it, you didn't run this skill.
+The banner is load-bearing for team-dev work: if you didn't print it, you
+didn't run this skill. The direct-mock pre-route above exits before the banner.
 
 ## Step 1 — Route by tier
 

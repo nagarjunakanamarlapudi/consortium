@@ -25,7 +25,11 @@ One file at `design/<flow>.html` containing:
 
 ```bash
 mkdir -p design/_framework
-cp "${CLAUDE_PLUGIN_ROOT}/skills/app-interactive-mocks/framework/"* design/_framework/
+CONSORTIUM_PLUGIN_ROOT="$PLUGIN_ROOT"
+if [ -z "$CONSORTIUM_PLUGIN_ROOT" ]; then
+  CONSORTIUM_PLUGIN_ROOT="$CLAUDE_PLUGIN_ROOT"
+fi
+cp "$CONSORTIUM_PLUGIN_ROOT/skills/app-interactive-mocks/framework/"* design/_framework/
 ```
 
 Optionally auto-detect tokens from `theme.dart`, `tailwind.config.(js|ts)`, `tokens.json`, or `:root` CSS and write them into `design/_framework/tokens.css`. Otherwise the neutral default applies.
@@ -33,7 +37,11 @@ Optionally auto-detect tokens from `theme.dart`, `tailwind.config.(js|ts)`, `tok
 **Per-flow scaffold:**
 
 ```bash
-cp "${CLAUDE_PLUGIN_ROOT}/skills/app-interactive-mocks/template.html" design/<flow>.html
+CONSORTIUM_PLUGIN_ROOT="$PLUGIN_ROOT"
+if [ -z "$CONSORTIUM_PLUGIN_ROOT" ]; then
+  CONSORTIUM_PLUGIN_ROOT="$CLAUDE_PLUGIN_ROOT"
+fi
+cp "$CONSORTIUM_PLUGIN_ROOT/skills/app-interactive-mocks/template.html" design/<flow>.html
 ```
 
 **Iterate, playground first.** Register screens with `Router.registerScreen`, wire links and tabs, then re-check the render after each change. **Serve over a local server — don't use `file://`:**
