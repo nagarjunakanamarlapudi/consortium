@@ -23,7 +23,7 @@ Codex receives a package at `plugins/consortium/` with a
 `.codex-plugin/plugin.json` manifest. Where Codex accepts the same directory
 structure, the package uses relative symlinks to the canonical source. The
 only copied/adapted files are those whose host format differs, such as Codex
-agent TOML definitions and small host-launcher wrappers.
+reviewer prompts and small host-launcher wrappers.
 
 The repository marketplace at `.agents/plugins/marketplace.json` exposes the
 Codex package at `./plugins/consortium`. It is the marketplace that users add
@@ -62,12 +62,19 @@ uses its native planning controls where available; Codex follows its normal
 explicit-plan and user-approval flow. Tier semantics and reviewer selection
 are identical.
 
-## Codex agent adapters
+## Codex review prompts
 
-Each applicable existing Claude reviewer gets a focused Codex TOML adapter
-that preserves its review remit. Reviewers run read-only; the implementer has
-workspace write access. Adapters do not duplicate the source skill content or
-invent product-specific policy.
+Codex plugins package skills, MCP servers, and hooks, but not reusable
+subagent definitions. Consortium therefore packages focused reviewer prompts
+inside `skills/team-dev-workflow/references/`. The Codex form of
+`team-dev-workflow` dispatches native Codex subagents with those prompts and a
+read-only review boundary. It uses a write-capable native subagent only for the
+autonomous `vibe-coding` implementation role.
+
+Claude continues to use its existing `agents/*.md` definitions. Aadhaa's
+`.codex/agents/` remain Aadhaa-specific project configuration and are not a
+Consortium package component. The shared workflow skill remains responsible for
+tier semantics and reviewer selection; no new reviewer policy is invented.
 
 ## Aadhaa dependency
 
@@ -94,7 +101,8 @@ Validation must prove:
 - the Codex manifest and marketplace JSON parse and pass the plugin validation
   tooling;
 - every package symlink resolves within the checked-out Consortium repository;
-- Codex agent TOML definitions parse and preserve appropriate sandbox levels;
+- Codex review prompts cover the selected roles and require read-only review
+  boundaries, except the explicit `vibe-coding` implementation role;
 - the effort script resolves the same tier under Claude and Codex from Git
   worktree state, non-Git fallback state, `CONSORTIUM_TIER`, user default, and
   built-in default in the documented precedence order;
