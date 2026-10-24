@@ -160,7 +160,8 @@ def _command_reason(command, settings, allow):
         # Global-option regexes must still see one operand when a quoted -C
         # path contains spaces. Preserve argument boundaries for that check.
         words = " ".join(re.sub(r"\s", lambda match: f"\\x{ord(match[0]):02x}", word) for word in argv)
-        if any(re.search(pattern, text) for pattern in settings.get("guard.deny", [])
+        if any(re.search(pattern, text) for key in ("guard.deny", "guard.deny_in_repo")
+               for pattern in settings.get(key, [])
                for text in (normalized, words)):
             return "Command is not allowed inside an agent run; the manager commits, pushes and deploys"
         if Path(argv[0]).name == "make" and any(

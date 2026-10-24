@@ -313,10 +313,12 @@ capabilities:
   device:
     bash_allow: ['^(adb|idb|maestro|emulator)\b', '^xcrun simctl\b']
 guard:
-  deny:                     # regexes refused in any agent's command
-    - '\bgit\s+(?:(?:-C|-c)\s+\S+\s+|--?[\w-]+(?:=\S+)?\s+)*(commit|push|tag|merge|rebase)(?![\w-])'   # the subcommand, after any global options; not merge-base
+  deny:                     # regexes refused in any agent's command, in any repository
+    - '\bgit\s+(?:(?:-C|-c)\s+\S+\s+|--?[\w-]+(?:=\S+)?\s+)*push(?![\w.=-])'   # after any global options; not stash push or a push.* config key
     - '\bgh\s+(pr\s+(create|merge)|release)\b'
     - '--no-verify\b'
+  deny_in_repo:             # regexes refused when the command acts on the run's own repository; a scratch repository is fine
+    - '\bgit\s+(?:(?:-C|-c)\s+\S+\s+|--?[\w-]+(?:=\S+)?\s+)*(commit|tag|merge|rebase)(?![\w.=-])'   # the subcommand, after any global options; not merge-base or a commit.* config key
   deny_make: []             # make target globs refused inside agents; a repo lists its deploy targets
 test_paths: ["**/test/**", "**/tests/**", "**/__tests__/**", "**/*_test.*", "**/test_*.py", "**/*.test.*", "**/*.spec.*", "e2e/**"]
 
@@ -699,8 +701,11 @@ What a run does:
 3. **Run folder.** It writes `brief.md`, `prompt.md`, `schema.json`, `meta.json` and
    `status.json = {"status": "running"}`.
 4. **Child environment.** `CONSORTIUM_RUN`, `CONSORTIUM_AGENT`, `CONSORTIUM_MODE`, `CONSORTIUM_WRITE_SCOPE` and
-   `CONSORTIUM_WORKTREE`. `CONSORTIUM_GUARD` holds `guard.deny`, `guard.deny_make` and the mode's allowlists, as
-   JSON. `PATH` starts with `<package>/lib/consortium/shims`. The environment is never written to disk.
+   `CONSORTIUM_WORKTREE`. `CONSORTIUM_GUARD` holds `guard.deny`, `guard.deny_in_repo`, `guard.deny_make` and the
+   mode's allowlists, as JSON. `PATH` starts with `<package>/lib/consortium/shims`. The environment is never written
+   to disk. The shim refuses a `guard.deny_in_repo` match only when the command's repository is the run's own: it
+   compares `git rev-parse --git-common-dir` for the command, with its global options, and for `CONSORTIUM_WORKTREE`,
+   and refuses when either cannot be resolved.
 5. **Detached by default.** `tmux -L $TMUX_SOCKET -f /dev/null new-session -d -s <id> -c <cwd> -e PATH=... -e CONSORTIUM_...=... -- <package>/bin/consortium _run <id>`.
    It prints the run id at once; `--wait` blocks until `status.json` is final. `CONSORTIUM_NO_TMUX=1` runs in the
    foreground, for tests.
@@ -793,7 +798,9 @@ What `handle` does for each event:
 - **`pre-bash`**
   - It splits the command into segments on `&&`, `||`, `;`, `|` and newlines, and also looks inside `bash -c` and
     `sh -c`.
-  - It denies a `guard.deny` match, or `make <target>` matching `guard.deny_make`, for any subagent or launcher run.
+  - It denies a `guard.deny` or `guard.deny_in_repo` match anywhere, or `make <target>` matching `guard.deny_make`,
+    for any subagent or launcher run, because it sees the command an agent typed rather than the repository it
+    lands in, and a test's own subprocesses never reach it.
   - For a `consortium:` read-only agent, every segment must also match `modes.read-only.bash_allow`, plus the
     `bash_allow` of its capabilities.
   - The agent's type is the payload's `agent_type`, else the file `subagent-start` wrote, else `CONSORTIUM_AGENT`.

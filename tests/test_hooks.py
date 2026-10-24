@@ -151,6 +151,13 @@ def test_pre_bash_denies_commit_push_and_deploy_targets(repo, command):
     denied(bash(repo, command))
 
 
+@pytest.mark.parametrize("command", ["git -C x commit -m test", "sh -c 'git commit'"])
+def test_pre_bash_denies_repo_rules_anywhere_for_an_agent(repo, command):
+    (repo / ".consortium/config.yaml").write_text(
+        "guard:\n  deny: []\n  deny_in_repo: ['\\bgit\\s+.*commit\\b']\n")
+    denied(bash(repo, command))
+
+
 @pytest.mark.parametrize("command", ["git diff -- push.py", "git log --grep=commit", "git merge-base HEAD main", "make test"])
 def test_pre_bash_allows_other_writer_commands(repo, command):
     assert bash(repo, command) is None
