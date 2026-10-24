@@ -65,7 +65,17 @@ def test_codex_form_keeps_read_only_agents_on_the_launcher():
     assert "--prompt" in body
     assert "model" in body and "effort" in body
     assert "PushNotification" not in text
-    assert 'bash "$PLUGIN_ROOT/scripts/effort.sh" --resolve' in body
+    assert 'bash "<plugin>/scripts/effort.sh" --resolve' in body
+    assert "the part of this SKILL.md's path before\n`/skills/agent-recipes/SKILL.md`" in body
+
+
+def test_codex_form_commands_never_rely_on_plugin_root():
+    # Codex sets PLUGIN_ROOT for hooks only; a model's own shell has neither variable (probe, 24 Oct).
+    _, body = parse_front_matter(FORMS[1].read_text())
+    blocks = re.findall(r"^```(?:bash|sh)?\n(.*?)^```", body, re.MULTILINE | re.DOTALL)
+    assert blocks
+    for block in blocks:
+        assert "PLUGIN_ROOT" not in block
 
 
 def test_brief_template_has_the_write_brief_sections_and_front_matter():

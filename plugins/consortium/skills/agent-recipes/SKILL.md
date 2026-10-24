@@ -11,10 +11,11 @@ Read-only agents go through `consortium run-codex`, not `spawn_agent`: the 24 Oc
 
 # Agent recipes
 
-First resolve the old workflow's tier:
+First resolve the old workflow's tier. For `<plugin>`, write the part of this SKILL.md's path before
+`/skills/agent-recipes/SKILL.md`; Codex doesn't give your shell commands a variable that holds it:
 
 ```bash
-bash "$PLUGIN_ROOT/scripts/effort.sh" --resolve
+bash "<plugin>/scripts/effort.sh" --resolve
 ```
 
 If it prints anything other than `off`, invoke `team-dev-workflow` and stop
