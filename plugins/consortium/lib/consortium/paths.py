@@ -44,4 +44,8 @@ def main_checkout(repo: Path) -> Path:
 
 
 def repo_config_dir(repo: Path) -> Path:
-    return (main_checkout(repo) / ".consortium").resolve()
+    try:
+        checkout = main_checkout(repo)
+    except subprocess.CalledProcessError:
+        checkout = repo  # outside git, the folder itself holds its overrides
+    return (checkout / ".consortium").resolve()

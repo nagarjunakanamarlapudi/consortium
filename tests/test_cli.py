@@ -67,6 +67,14 @@ def test_repo_config_dir_follows_a_symlinked_folder(tmp_path):
     assert repo_config_dir(second) == config.resolve()
 
 
+def test_repo_config_dir_outside_git_is_the_folder_itself(tmp_path):
+    from consortium.paths import repo_config_dir
+
+    folder = tmp_path / "plain"
+    folder.mkdir()
+    assert repo_config_dir(folder) == (folder / ".consortium").resolve()
+
+
 def test_repo_root_outside_git_is_none(tmp_path):
     from consortium.paths import repo_root
 
