@@ -27,7 +27,8 @@ def test_agents_is_a_directory_symlink_to_job_descriptions():
     assert agents.is_symlink()
     assert agents.is_dir()
     assert agents.resolve() == ROOT / "plugins/consortium/job-descriptions"
-    assert {path.name for path in agents.glob("*.md")} == AGENTS
+    # The old workflow's agents stay reachable beside the new ones until they are retired.
+    assert AGENTS <= {path.name for path in agents.glob("*.md")}
     assert all((agents / name).is_file() for name in AGENTS)
 
 
