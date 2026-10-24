@@ -8,11 +8,10 @@ discovery, and Claude Agent-tool instructions are not executable Codex policy.
 
 ## Codex-native selection policy
 
-At `experts-eval` and above, always select `spec-clarity` and
-`domain-conventions` for the plan. For the diff, run `spec-compliance` first as
-a gate; after it passes, always select `code-quality`, `domain-conventions`,
-and `simplifier`. Add `bar-raiser` at both checkpoints for
-`bar-raiser-eval` and `vibe-coding`.
+At `experts-eval` and above, select one `test-designer` for the plan in design
+mode. For the diff, run `spec-gate` first as a gate; after it returns
+`COMPLIANT`, select one `code-reviewer` per round. Add `bar-raiser` at both
+checkpoints for `bar-raiser-eval` and `vibe-coding`.
 
 After reading the approved plan, changed paths, and diff, add every matching
 conditional prompt:
@@ -20,13 +19,14 @@ conditional prompt:
 | Change trigger | Prompt | Checkpoint |
 |---|---|---|
 | Authentication, authorization, crypto, secrets, untrusted input or validation, deserialization, outbound URLs, filesystem paths, or command construction | `security` | diff |
-| CI/CD definitions or deployment-pipeline automation, including `.github/workflows/**`, `.gitlab-ci.yml`, `.circleci/**`, and `Jenkinsfile` | `cicd` | diff |
-| Infrastructure as code, including Terraform, CDK, Pulumi, CloudFormation, or repository `infra/**` changes | `iac` | diff |
-| Non-trivial logic or behavior changes, including API behavior, state transitions, scripts, or automation | `test-coverage` | diff |
+| CI/CD definitions or deployment-pipeline automation, including `.github/workflows/**`, `.gitlab-ci.yml`, `.circleci/**`, and `Jenkinsfile` | `infra-reviewer` | diff |
+| Infrastructure as code, including Terraform, CDK, Pulumi, CloudFormation, or repository `infra/**` changes | `infra-reviewer` | diff |
+| Non-trivial logic or behavior changes, including API behavior, state transitions, scripts, or automation | `test-designer` (trace mode) | diff |
 
-Triggers are cumulative: dispatch all matches in parallel after the
-`spec-compliance` gate. Do not select `test-coverage` for docs-only changes,
-renames, formatting, or other no-behavior-change edits.
+Triggers are cumulative: dispatch each matching prompt once per round in
+parallel after the `spec-gate`, including only one `infra-reviewer` when both
+IaC and CI/CD match. Do not select `test-designer` at the diff checkpoint for
+docs-only changes, renames, formatting, or other no-behavior-change edits.
 
 ### Codex project-reviewer discovery
 
@@ -37,7 +37,7 @@ renames, formatting, or other no-behavior-change edits.
    and its configured tool/sandbox policy is read-only. Skip writers,
    implementers, deployers, and ambiguous configurations.
 3. Route plan/spec reviewers to the plan checkpoint and diff/code reviewers
-   after `spec-compliance`. Dispatch independent matches in parallel using the
+   after `spec-gate`. Dispatch independent matches in parallel using the
    project's Codex-native reviewer configuration plus the mandatory boundary
    below.
 4. If repository instructions describe a review focus but provide no eligible
@@ -61,47 +61,51 @@ The only write-capable subagent Consortium permits is a `vibe-coding`
 implementation subagent. It is not a reviewer and must never receive one of
 these prompts as authorization to edit.
 
-## Plan reviewers
+## Plan and test review
 
-### `spec-clarity`
+### `test-designer`
 
-Review the proposed implementation plan only. Check whether each step names
-specific files, behavior, and checkable acceptance criteria. Identify ambiguous
-interfaces, unstated assumptions, missing edge/error cases, and steps that
-would force the implementer to guess. Report each finding as
-`[blocking | important | minor] issue — concrete correction`. Do not review
-code quality.
+At the plan checkpoint, use design mode. Review the proposed plan's intended
+behavior for missing positive and negative cases, boundary and failure cases,
+ambiguous interfaces, unstated assumptions and anything under-specified that
+would force the implementer to guess. Derive expectations from the plan, not
+implementation code. Give specific cases and concrete corrections.
 
-### `domain-conventions`
-
-Read repository instructions and neighboring implementation first. Review the
-plan or diff for repository-specific conventions, reuse, naming, layout, and
-consistency. Flag only demonstrated deviations, citing the relevant convention
-or existing source as `file:line`. Report each finding as
-`[blocking | important | minor] issue — concrete correction`.
+At the diff checkpoint for logic or behavior changes, use trace mode. Take the
+approved design, its positive and negative cases, the branch and passing gate
+logs. Trace cases to test file/name and matching passing evidence; report
+missing coverage or unavailable evidence explicitly. Do not infer a pass from
+a test's existence or weaken a design expectation to fit the implementation.
+Run no tests in either mode. For this legacy workflow, return FINDINGS rather
+than a factory envelope: `{ reviewer, findings: [{ severity, issue, suggestion }] }`,
+using `blocking | important | minor` and file/line or plan-section evidence.
+Report missing required review artifacts as findings.
 
 ## Diff gate and advisory reviewers
 
-### `spec-compliance`
+### `spec-gate`
 
 Compare the actual diff line by line with the approved plan. Do not trust the
-author's summary. Start with `COMPLIANT` or `NOT_COMPLIANT`. For every mismatch,
-report `[missing | extra | misunderstood]`, the exact location, and the plan
-requirement. Judge fidelity only, not general quality.
+author's summary. Map every requirement to the diff, check scope boundaries,
+and verify protected values word for word. For every mismatch, report
+`[missing | extra | misunderstood]`, the exact location, and the plan
+requirement. Judge fidelity only, not general quality. Run no tests. For this
+legacy workflow, return the GATE object rather than a factory envelope:
+`{ verdict: "COMPLIANT" | "NOT_COMPLIANT", discrepancies: ["..."] }`.
 
-### `code-quality`
+### `code-reviewer`
 
-Review the diff for real correctness risks, missing error handling, unclear
-naming, needless complexity, and regressions. Report only material findings as
-`[blocking | important | minor] [confidence: high | medium | low] issue at
-file:line — concrete fix`, highest severity first.
-
-### `simplifier`
-
-Review for behavior-preserving simplification: needless length, vague names,
-duplication, missed reuse, premature abstraction, or obviously wasteful work.
-Do not hunt for bugs. Report `[important | minor] simplification at file:line —
-concrete simpler form`. Do not recommend a change that alters behavior.
+Read repository instructions, the diff, surrounding code, callers and tests.
+Review correctness, error handling, silent failures, the repo's conventions and
+reuse, citing demonstrated deviations and their source. Also suggest
+quality-only simplifications that cut length and vagueness without changing
+behavior: duplication, vague names, needless wrappers, premature abstraction
+or obviously wasteful work. Tag meaningful simplifications `important` and
+give the existing helper or concrete simpler form. Run no tests. For this
+legacy workflow, return FINDINGS rather than a factory envelope:
+`{ reviewer, findings: [{ severity, issue, suggestion }] }`, using
+`blocking | important | minor`, highest severity first. Include file:line,
+failing scenario or simpler form, and confidence in each issue.
 
 ## Bar-raiser gate
 
@@ -127,29 +131,23 @@ Use when changes touch authn/authz, secrets, crypto, validation, deserialization
 network targets, paths, or command construction. Trace real input-to-sink paths
 and report exploitable issues involving access control, injection, SSRF/path
 traversal, secret exposure, crypto misuse, or unsafe operations. Use the
-code-quality severity/confidence format and include a concrete fix.
+code-reviewer severity/confidence format and include a concrete fix.
 
-### `cicd`
+### `infra-reviewer`
 
-Use for CI/CD changes. Check secret exposure, untrusted-input interpolation,
-token permissions, third-party action pinning, privileged triggers, deployment
-blast radius, and self-hosted runner exposure. Use the code-quality
-severity/confidence format and include a concrete fix.
-
-### `iac`
-
-Use for Terraform, CDK, Pulumi, or CloudFormation changes. Lead with stateful
-replacement/destruction, IAM expansion, drift, missing deletion protection,
-hard-coded environment data, and public network exposure. State the blast
-radius, use the code-quality severity/confidence format, and include a concrete
-fix.
-
-### `test-coverage`
-
-Use for logic or behavior changes. Check that new behavior, boundaries, and
-meaningful failure paths have tests that would fail on regression. Avoid
-coverage theater. Report `[blocking | important | minor] untested behavior at
-file:line — specific test to add`.
+Use for infrastructure as code and CI/CD pipeline changes. For Terraform, CDK,
+Pulumi or CloudFormation, lead with stateful replacement/destruction, data
+loss, IAM expansion, drift, missing deletion protection, hard-coded environment
+data and public network exposure. For CI/CD, check secret exposure,
+untrusted-input interpolation, token permissions, third-party dependency
+pinning, privileged triggers, deployment blast radius and runner exposure.
+Enumerate and check every allowlist and route registry named by repository
+notes. Inspect supplied plans and logs only; do not apply infrastructure,
+deploy, run tests or pipelines, or claim live drift without observed evidence.
+For this legacy workflow, return FINDINGS rather than a factory envelope:
+`{ reviewer, findings: [{ severity, issue, suggestion }] }`. Use the
+code-reviewer severity/confidence format, state the blast radius and evidence
+limits, and include a concrete fix.
 
 ## Project-local reviewers
 

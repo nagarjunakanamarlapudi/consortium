@@ -35,8 +35,7 @@ const PLAN_PROMPT = `You are reviewing an implementation PLAN for the current re
 
 // Always-on plan reviewers (mirrors references/reviewer-registry.md).
 const tasks = [
-  () => agent(PLAN_PROMPT, { agentType: 'consortium:spec-clarity-reviewer', label: 'plan:spec-clarity', phase: 'Plan review', schema: FINDINGS }),
-  () => agent(PLAN_PROMPT, { agentType: 'consortium:domain-conventions-reviewer', label: 'plan:domain-conventions', phase: 'Plan review', schema: FINDINGS }),
+  () => agent(`Use design mode: review the plan's intended behavior for missing positive and negative cases, boundaries and failure paths, and anything ambiguous or under-specified. Derive expectations from the plan, not implementation code. Remain read-only and run no tests. For this legacy workflow, return only FINDINGS: { reviewer, findings: [{ severity: "blocking" | "important" | "minor", issue, suggestion }] }, rather than the factory report envelope.\n\n${PLAN_PROMPT}`, { agentType: 'consortium:test-designer', label: 'plan:test-designer', phase: 'Plan review', schema: FINDINGS }),
 ]
 // Auto-discovered project plan-reviewers (bare agent names from the repo's .claude/agents/).
 for (const t of extraReviewers) {

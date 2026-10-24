@@ -36,18 +36,21 @@ let gate = null
 let reviews = []
 let verdict = null
 while (true) {
-  gate = await agent(`Spec-compliance gate: run \`git diff\` and read the changed files; does the diff implement the plan, accurately and completely?\n\nPLAN:\n${plan}`,
-    { agentType: 'consortium:spec-compliance-reviewer', label: 'gate:r' + round, phase: 'Review', schema: GATE })
+  gate = await agent(`Spec gate: read \`git diff\` and the changed files line by line; map every plan requirement to the diff and check scope boundaries and do-not-change values word for word. Does the diff implement the plan, accurately and completely? For this legacy workflow, return only the GATE object: verdict COMPLIANT or NOT_COMPLIANT and discrepancies as strings, rather than the factory report envelope.\n\nPLAN:\n${plan}`,
+    { agentType: 'consortium:spec-gate', label: 'gate:r' + round, phase: 'Review', schema: GATE })
 
   if (gate.verdict === 'COMPLIANT') {
     const reviewerTasks = [
-      () => agent('Run `git diff`; review the change for code quality. Return findings.', { agentType: 'consortium:code-quality-reviewer', label: 'cq:r' + round, phase: 'Review', schema: FINDINGS }),
-      () => agent('Run `git diff`; review the change for repo conventions & reuse. Return findings.', { agentType: 'consortium:domain-conventions-reviewer', label: 'dc:r' + round, phase: 'Review', schema: FINDINGS }),
-      () => agent('Simplifier (quality only, no bug-hunting): run `git diff`; suggest reuse / simplification / efficiency / altitude cleanups that cut length and vagueness without changing behavior. Tag meaningful simplifications "important". Return findings.', { agentType: 'consortium:simplifier', label: 'simp:r' + round, phase: 'Review', schema: FINDINGS }),
+      () => agent('Read `git diff`, affected callers and tests; review correctness, error handling and silent failures, and the repo\'s conventions and reuse. Also suggest quality-only simplifications that cut length and vagueness without changing behavior; tag meaningful simplifications "important". Remain read-only and run no tests. For this legacy workflow, return only FINDINGS: { reviewer, findings: [{ severity: "blocking" | "important" | "minor", issue, suggestion }] }, rather than the factory report envelope.', { agentType: 'consortium:code-reviewer', label: 'code:r' + round, phase: 'Review', schema: FINDINGS }),
     ]
     // Conditional reviewers (by change-type) the skill passed in — dispatched alongside the always-on experts.
-    for (const t of extraReviewers) {
-      reviewerTasks.push(() => agent('Run `git diff`; review the change for your specialty. Return findings.', { agentType: t, label: String(t).replace('consortium:', '') + ':r' + round, phase: 'Review', schema: FINDINGS }))
+    for (const t of new Set(extraReviewers)) {
+      const focus = t === 'consortium:test-designer'
+        ? `Use trace mode: read the approved plan, any supplied design-derived positive and negative cases, tests and passing gate logs. Identify missing coverage and unavailable passing evidence for logic and behavior changes; never infer a pass from a test's name or existence. Run no tests.\n\nPLAN:\n${plan}`
+        : t === 'consortium:infra-reviewer'
+          ? 'Read `git diff` and related definitions; review infrastructure and CI/CD for resource replacement, data loss, IAM, drift, pipeline security, and every allowlist and route registry named by the repository notes. Inspect supplied plans and logs only; remain read-only and run no tests or pipelines.'
+          : 'Run `git diff`; review the change for your specialty. Return findings.'
+      reviewerTasks.push(() => agent(focus + '\nFor this legacy workflow, return only FINDINGS: { reviewer, findings: [{ severity: "blocking" | "important" | "minor", issue, suggestion }] }, rather than the factory report envelope. Report missing required review evidence as findings.', { agentType: t, label: String(t).replace('consortium:', '') + ':r' + round, phase: 'Review', schema: FINDINGS }))
     }
     reviews = await parallel(reviewerTasks)
     verdict = barRaiser

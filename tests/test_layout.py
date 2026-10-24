@@ -9,16 +9,16 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS = {
     "bar-raiser.md",
-    "cicd-reviewer.md",
-    "code-quality-reviewer.md",
-    "domain-conventions-reviewer.md",
-    "iac-change-reviewer.md",
+    "ci-gate.md",
+    "code-reviewer.md",
+    "device-qa.md",
     "implementer.md",
+    "infra-reviewer.md",
+    "investigator.md",
+    "searcher.md",
     "security-reviewer.md",
-    "simplifier.md",
-    "spec-clarity-reviewer.md",
-    "spec-compliance-reviewer.md",
-    "test-coverage-reviewer.md",
+    "spec-gate.md",
+    "test-designer.md",
 }
 
 
@@ -27,8 +27,7 @@ def test_agents_is_a_directory_symlink_to_job_descriptions():
     assert agents.is_symlink()
     assert agents.is_dir()
     assert agents.resolve() == ROOT / "plugins/consortium/job-descriptions"
-    # The old workflow's agents stay reachable beside the new ones until they are retired.
-    assert AGENTS <= {path.name for path in agents.glob("*.md")}
+    assert AGENTS == {path.name for path in agents.glob("*.md")}
     assert all((agents / name).is_file() for name in AGENTS)
 
 

@@ -6,11 +6,9 @@ Single source of truth for which reviewers run, at which checkpoint, in which mo
 
 | reviewer | checkpoint | mode | focus |
 |---|---|---|---|
-| `consortium:spec-clarity-reviewer` | plan | advisory | is the plan concrete, complete, unambiguous? |
-| `consortium:domain-conventions-reviewer` | plan + build | advisory | does it respect repo conventions & reuse? |
-| `consortium:spec-compliance-reviewer` | build | **gate** | does the diff match the agreed plan? |
-| `consortium:code-quality-reviewer` | build | advisory | bugs, error handling, naming, simplicity |
-| `consortium:simplifier` | build | advisory | reuse / simplify / cut length & vagueness — quality only (the `/simplify` pass) |
+| `consortium:test-designer` | plan | advisory | design mode: missing positive/negative cases, ambiguity and under-specification; returns FINDINGS |
+| `consortium:spec-gate` | build | **gate** | does the diff match the agreed plan and protected values? returns GATE with COMPLIANT / NOT_COMPLIANT |
+| `consortium:code-reviewer` | build | advisory | correctness, error handling, repo conventions and reuse; quality-only simplifications that cut length and vagueness without changing behavior, meaningful ones tagged important; returns FINDINGS |
 
 ## Gate (`bar-raiser-eval` only)
 
@@ -25,9 +23,11 @@ Single source of truth for which reviewers run, at which checkpoint, in which mo
 | trigger (changed paths / keywords) | reviewer | checkpoint | mode |
 |---|---|---|---|
 | auth / crypto / input / secrets | `consortium:security-reviewer` | build | advisory |
-| CI/CD pipeline files | `consortium:cicd-reviewer` | build | advisory |
-| IaC (Terraform/CDK/Pulumi/CFN) | `consortium:iac-change-reviewer` | build | advisory |
-| logic / behavior changes | `consortium:test-coverage-reviewer` | build | advisory |
+| CI/CD pipeline files | `consortium:infra-reviewer` | build | advisory |
+| IaC (Terraform/CDK/Pulumi/CFN) | `consortium:infra-reviewer` | build | advisory |
+| logic / behavior changes | `consortium:test-designer` | build | advisory (trace mode: cases, tests and passing gate logs; report missing evidence as findings) |
+
+Pass each matching reviewer once, even when multiple triggers match (for example, both IaC and CI/CD). The workflows request their legacy GATE or FINDINGS shapes explicitly instead of factory report envelopes.
 
 ## Project reviewers (auto-discovered) — no config needed
 

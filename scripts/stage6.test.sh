@@ -4,7 +4,7 @@ set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fails=0; ok(){ printf 'ok   - %s\n' "$1"; }; fail(){ printf 'FAIL - %s\n' "$1"; fails=$((fails+1)); }
 
-AGENTS="security-reviewer cicd-reviewer iac-change-reviewer test-coverage-reviewer"
+AGENTS="security-reviewer infra-reviewer test-designer"
 
 # 1. each specialized agent exists with frontmatter
 for a in $AGENTS; do
