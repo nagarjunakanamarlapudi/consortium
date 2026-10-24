@@ -149,3 +149,16 @@ def test_loads_do_not_share_mutable_defaults(tmp_path):
 ])
 def test_glob_match(path, pattern, expected):
     assert glob_match(path, pattern) is expected
+
+
+@pytest.mark.parametrize("command, denied", [
+    ("git commit -m x", True), ("git -C x commit", True), ("git --no-pager commit", True), ("git push", True),
+    ("git -c a=b tag v1", True), ("git merge main", True), ("git rebase main", True),
+    ("gh pr create", True), ("gh pr merge 3", True), ("gh release create v1", True), ("make x --no-verify", True),
+    ("git merge-base a b", False), ("git commit-tree abc", False), ("git diff -- push.py", False),
+    ("git log --grep=commit", False), ("git status", False), ("gh pr view 3", False),
+])
+def test_default_guard_denies_writes_and_allows_reads(command, denied):
+    import re
+    patterns = load_settings(None).get("guard.deny")
+    assert any(re.search(pattern, command) for pattern in patterns) is denied
