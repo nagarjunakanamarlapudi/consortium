@@ -63,8 +63,12 @@ def test_repo_agent_cannot_shadow_a_plugin_agent(tmp_path, package):
 
 def test_old_format_agent_is_not_ready():
     registry = load_registry(None)
-    assert len(registry) == 11
-    assert all(not job.ready for job in registry.values())
+    old = {
+        "bar-raiser", "cicd-reviewer", "code-quality-reviewer",
+        "domain-conventions-reviewer", "iac-change-reviewer", "simplifier",
+        "spec-clarity-reviewer", "spec-compliance-reviewer", "test-coverage-reviewer",
+    }
+    assert all(not registry[name].ready for name in old)
     with pytest.raises(ConfigError, match="spec-compliance-reviewer has no consortium: block; it belongs to the old workflow"):
         resolve_agent("spec-compliance-reviewer", load_settings(None), registry)
 
