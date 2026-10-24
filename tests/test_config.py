@@ -155,6 +155,7 @@ def test_glob_match(path, pattern, expected):
     ("git commit -m x", True), ("git -C x commit", True), ("git --no-pager commit", True), ("git push", True),
     ("git -c a=b tag v1", True), ("git merge main", True), ("git rebase main", True),
     ("gh pr create", True), ("gh pr merge 3", True), ("gh release create v1", True), ("make x --no-verify", True),
+    ("echo $(git push)", True), ("echo `git commit -m x`", True), ("git push;", True),
     ("git merge-base a b", False), ("git commit-tree abc", False), ("git diff -- push.py", False),
     ("git log --grep=commit", False), ("git status", False), ("gh pr view 3", False),
 ])

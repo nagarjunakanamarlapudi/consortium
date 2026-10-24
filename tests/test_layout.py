@@ -40,6 +40,14 @@ def test_bin_links_into_the_package():
     assert os.access(entry_point, os.X_OK)
 
 
+def test_hooks_links_into_the_package():
+    hooks = ROOT / "hooks"
+    assert hooks.is_symlink()
+    assert hooks.resolve() == ROOT / "plugins/consortium/hooks"
+    assert (hooks / "hooks.json").is_file()
+    assert (hooks / "guard.py").is_file()
+
+
 def test_marketplaces_are_named_consortium_next_and_plugins_stay_consortium():
     for name in (".claude-plugin/marketplace.json", ".agents/plugins/marketplace.json"):
         marketplace = json.loads((ROOT / name).read_text())

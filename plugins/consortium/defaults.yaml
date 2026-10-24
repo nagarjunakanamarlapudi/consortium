@@ -65,7 +65,7 @@ capabilities:
     bash_allow: ['^(adb|idb|maestro|emulator)\b', '^xcrun simctl\b']
 guard:
   deny:                     # regexes refused in any agent's command
-    - '\bgit\s+(?:(?:-C|-c)\s+\S+\s+|--?[\w-]+(?:=\S+)?\s+)*(commit|push|tag|merge|rebase)(?=\s|$)'   # the subcommand, after any global options; not merge-base
+    - '\bgit\s+(?:(?:-C|-c)\s+\S+\s+|--?[\w-]+(?:=\S+)?\s+)*(commit|push|tag|merge|rebase)(?![\w-])'   # the subcommand, after any global options; not merge-base
     - '\bgh\s+(pr\s+(create|merge)|release)\b'
     - '--no-verify\b'
   deny_make: []             # make target globs refused inside agents; a repo lists its deploy targets
