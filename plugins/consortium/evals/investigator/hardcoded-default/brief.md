@@ -30,7 +30,7 @@ Keep all behavior outside the task unchanged.
 found by: `rg -l distance_km tests`
 
 ## Done means
-Run `make lint` and `pytest tests/test_missing_origin.py`; the regression must demonstrate the reported bug. Record the actual command, output and nonzero exit code. Leave test changes uncommitted.
+Run `make lint` and `uv run --no-project --with pytest pytest tests/test_missing_origin.py` (the sample repository has no environment of its own); the regression must demonstrate the reported bug. Record the actual command, output and nonzero exit code. Leave test changes uncommitted.
 
 ## Forbidden
 Never commit, push, tag, merge, create a pull request or deploy.

@@ -3,7 +3,7 @@ agent: ci-gate
 ---
 
 ## Task
-Classify the recorded failure in artifacts/ci-output.txt against artifacts/flakes.md. The recorded command was pytest tests/test_notify.py and exit code 1. Read logs only; recommend any rerun, never execute it.
+Classify the recorded failure in artifacts/ci-output.txt against artifacts/flakes.md. The gate runner recorded: commit, this repository's HEAD; command, pytest tests/test_notify.py; exit code 1; failed step, that command; no reruns; no cleanup steps. Read logs only; recommend any rerun, never execute it.
 
 ## Context
 The assigned sample repository is the current directory if it contains shop/; otherwise it is repos/ci-gate/known-flake/ under the eval session working directory. Work in that repository and resolve every scoped path there. The brief is outside the repository. No device is needed.
