@@ -1,12 +1,8 @@
 ---
 name: team-dev-workflow
 description: >-
-  Use when the user asks to build, add, implement, change, refactor, fix, or ship
-  code or another development artifact. Resolves the active Consortium tier and
-  applies the matching Codex-native planning and review workflow. Skip trivial
-  mechanical edits, pure read-only investigation, a complete patch supplied
-  verbatim, and direct requests for interactive/clickable app mocks or
-  prototypes; use app-interactive-mocks for those design deliverables.
+  The old Consortium review board, off by default. Use only when the agent-recipes playbook routes here because a
+  Consortium tier other than off is set (/consortium:team-dev-effort).
 ---
 
 # Consortium — Codex team-dev workflow
