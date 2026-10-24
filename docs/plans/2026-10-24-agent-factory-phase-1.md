@@ -382,7 +382,7 @@ A repo or user patch to `mode`, `report`, `station`, `version` or the body raise
 "a repo can't rewrite a generic agent; make a repo-only agent under its own name". So does a repo agent in
 `<repo>/.consortium/agents/` whose name is already a plugin agent.
 
-`compose_prompt` builds four parts, in this order:
+`compose_prompt` builds five parts, in this order:
 1. `# You are the <name> agent (job description v<version>)`
 2. The body
 3. `## Notes from this repo`, with one bullet per note, only when there are notes
