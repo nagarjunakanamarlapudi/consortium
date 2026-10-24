@@ -1,0 +1,63 @@
+{
+  "type": "object",
+  "properties": {
+    "verdict": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "compliant",
+        "not_compliant",
+        "pass",
+        "rewrite",
+        null
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "problem": {
+            "type": "string"
+          },
+          "fix": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity",
+          "file",
+          "line",
+          "problem",
+          "fix"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "verdict",
+    "findings"
+  ],
+  "additionalProperties": false
+}

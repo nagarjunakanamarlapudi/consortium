@@ -1,0 +1,131 @@
+{
+  "type": "object",
+  "properties": {
+    "symptom": {
+      "type": "string"
+    },
+    "repro_steps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reproduced": {
+      "type": "boolean"
+    },
+    "root_cause": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string"
+            },
+            "line": {
+              "type": "integer"
+            },
+            "explanation": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "file",
+            "line",
+            "explanation"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "other_callers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "line",
+          "note"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "failing_test": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "command": {
+              "type": "string"
+            },
+            "exit_code": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "file",
+            "name",
+            "command",
+            "exit_code"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "fix_options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "option": {
+            "type": "string"
+          },
+          "tradeoffs": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "option",
+          "tradeoffs"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "recommendation": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "symptom",
+    "repro_steps",
+    "reproduced",
+    "root_cause",
+    "other_callers",
+    "failing_test",
+    "fix_options",
+    "recommendation"
+  ],
+  "additionalProperties": false
+}

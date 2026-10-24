@@ -1,0 +1,121 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "none"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DONE",
+        "NEEDS_CONTEXT",
+        "BLOCKED",
+        "FAILED"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "null"
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "why"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claim": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "command",
+              "file",
+              "screenshot",
+              "url",
+              "query",
+              "log"
+            ]
+          },
+          "ref": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim",
+          "kind",
+          "ref",
+          "result"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "command",
+          "exit_code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "status",
+    "summary",
+    "payload",
+    "decisions",
+    "evidence",
+    "changes",
+    "checks",
+    "questions"
+  ],
+  "additionalProperties": false
+}

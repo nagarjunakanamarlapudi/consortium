@@ -1,0 +1,70 @@
+{
+  "type": "object",
+  "properties": {
+    "searches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string"
+                },
+                "line": {
+                  "type": "integer"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "defines",
+                    "calls",
+                    "tests",
+                    "configures",
+                    "other"
+                  ]
+                }
+              },
+              "required": [
+                "file",
+                "line",
+                "text",
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "name",
+          "command",
+          "matches"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "too_common": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "searches",
+    "too_common"
+  ],
+  "additionalProperties": false
+}
