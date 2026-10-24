@@ -52,6 +52,35 @@ def parse_brief(text: str) -> Brief:
     return Brief(front, {key: "\n".join(lines).strip() for key, lines in sections.items()}, text)
 
 
+def scope_entries(brief: Brief) -> list[str]:
+    """Read every backticked Scope entry, including create/gone and globs."""
+    return re.findall(r"`([^`]+)`", brief.sections.get("scope", ""))
+
+
+def in_scope(path: str, entries: list[str], root: Path) -> bool:
+    """Match an exact path, a folder's descendants, or a shared-rule glob."""
+    from consortium.config import glob_match
+
+    root = root.resolve()
+    candidate = (root / path).resolve()
+    if not candidate.is_relative_to(root):
+        return False
+    relative = candidate.relative_to(root).as_posix()
+    for entry in entries:
+        target = (root / entry).resolve()
+        if not target.is_relative_to(root):
+            continue
+        if "*" in entry:
+            pattern = target.relative_to(root).as_posix()
+            if glob_match(relative, pattern):
+                return True
+        elif candidate == target:
+            return True
+        elif (entry.endswith("/") or target.is_dir()) and candidate.is_relative_to(target):
+            return True
+    return False
+
+
 _EXTENSIONS = (".py", ".dart", ".ts", ".tsx", ".js", ".sql", ".yaml", ".yml", ".json", ".md",
                ".sh", ".swift", ".kt", ".gradle", ".toml")
 _LINE_SUFFIX = re.compile(r":(\d+)(?:-(\d+))?$")

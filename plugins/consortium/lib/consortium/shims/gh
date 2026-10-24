@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+"""Run the shared stdlib guard as gh."""
+from pathlib import Path
+import runpy
+
+runpy.run_path(str(Path(__file__).with_name("git")), init_globals={"COMMAND": "gh"}, run_name="__main__")
