@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -21,6 +22,7 @@ from consortium.config import ConfigError, glob_match, load_settings
 
 CODEX_BIN = os.environ.get("CONSORTIUM_CODEX", "codex")
 TMUX_SOCKET = os.environ.get("CONSORTIUM_TMUX_SOCKET", "consortium")
+SYSTEM_BIN_DIR = Path("/usr/bin")
 
 
 class LaunchError(Exception):
@@ -183,6 +185,34 @@ def _session_env_args(server: dict | None, env: dict) -> list[str]:
     return args
 
 
+def _developer_tools(run_id, shims, path):
+    """Link the binaries behind macOS's xcrun shims for the guarded commands; the run's bin folder, or None."""
+    if sys.platform != "darwin":
+        return None
+    lookup = os.pathsep.join(entry for entry in path.split(os.pathsep)
+                             if Path(entry or ".").resolve() != shims)
+    xcrun = shutil.which("xcrun", path=lookup)
+    folder = runlog.run_dir(run_id) / "bin"
+    for shim in shims.iterdir():
+        binary = shutil.which(shim.name, path=lookup)
+        if not xcrun or not binary or not Path(binary).resolve().is_relative_to(SYSTEM_BIN_DIR.resolve()):
+            continue
+        try:
+            # Resolve xcrun's shims before Codex's sandbox prevents its cache writes.
+            result = subprocess.run([xcrun, "--find", shim.name], capture_output=True, text=True, timeout=5)
+            target = Path(result.stdout.strip())
+            if result.returncode or not target.is_absolute() or not target.is_file() or not os.access(target, os.X_OK):
+                continue
+            folder.mkdir(exist_ok=True)
+            link = folder / shim.name
+            if link.is_symlink():
+                link.unlink()
+            link.symlink_to(target)
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            continue
+    return folder if folder.is_dir() and any(link.is_symlink() for link in folder.iterdir()) else None
+
+
 def _environment(meta, task, settings):
     allow = []
     if meta["mode"] == "read-only":
@@ -191,13 +221,18 @@ def _environment(meta, task, settings):
             allow.extend(settings.get(f"capabilities.{capability}.bash_allow", []))
     unset = set(filter(None, os.environ.get("CONSORTIUM_UNSET", "").split(","))) | {"CONSORTIUM_UNSET"}
     env = {key: value for key, value in os.environ.items() if key not in unset}
+    shims = paths.package_root() / "lib/consortium/shims"
+    path = env.get("PATH", "")
+    binary_dir = _developer_tools(meta["run_id"], shims, path)
+    if binary_dir is not None:
+        path = str(binary_dir) + os.pathsep + path
     env.update({"CONSORTIUM_RUN": meta["run_id"], "CONSORTIUM_AGENT": meta["agent"],
                 "CONSORTIUM_MODE": meta["mode"], "CONSORTIUM_WRITE_SCOPE": meta["write_scope"],
                 "CONSORTIUM_WORKTREE": meta["worktree"], "CONSORTIUM_GUARD": json.dumps({
                     "deny": settings.get("guard.deny", []), "deny_in_repo": settings.get("guard.deny_in_repo", []),
                     "deny_make": settings.get("guard.deny_make", []),
                     "bash_allow": allow}),
-                "PATH": str(paths.package_root() / "lib/consortium/shims") + os.pathsep + env.get("PATH", "")})
+                "PATH": str(shims) + os.pathsep + path})
     return env
 
 
