@@ -1,0 +1,107 @@
+# Consortium defaults: every setting has one here.
+# Layers, a later one winning: this file < ~/.consortium/config.yaml < <repo>/.consortium/config.yaml < the brief.
+# A list whose items all start with "+" adds to the list it overrides.
+version: 1
+app: either                 # claude | codex | either; either = the manager's own app
+ceiling: normal             # lean | normal | full
+
+tiers:
+  deep:     {claude: {model: opus,   effort: high},   codex: {model: gpt-6.1-sol, effort: xhigh}}
+  standard: {claude: {model: sonnet, effort: medium}, codex: {model: gpt-6.1-sol, effort: medium}}
+  cheap:    {claude: {model: haiku,  effort: low},    codex: {model: gpt-6-luna,  effort: low}}
+
+thresholds:
+  reviewers_min_lines: 200
+  code_reviewer_lines: 800
+
+languages:
+  python: [.py]
+  dart: [.dart]
+  javascript: [.js, .jsx, .ts, .tsx, .mjs, .cjs]
+checks:                     # done-means commands per language; {tests} = the brief's test paths
+  python: auto              # `make lint` if the Makefile has a lint target, else `ruff check .`; plus `pytest {tests}`
+  dart: auto                # `flutter analyze` + `flutter test {tests}` if pubspec.yaml names flutter, else dart analyze/test
+  javascript: auto          # `npm run lint` if package.json has it; `npm test -- {tests}`
+
+risk:                       # flag -> path globs, matched against repo-relative paths
+  auth:    ["**/auth/**", "**/authz/**", "**/authn/**", "**/login/**", "**/oauth/**"]
+  crypto:  ["**/crypto/**", "**/*crypt*.*", "**/*signing*.*"]
+  pii:     ["**/privacy/**", "**/*pii*.*"]
+  input:   ["**/validators/**", "**/*sanitiz*.*", "**/parsers/**"]
+  infra:   ["infra/**", "terraform/**", "**/*.tf", "cdk/**", "**/cdk.json", "**/Dockerfile*", "**/docker-compose*.y*ml", "k8s/**", "helm/**"]
+  ci:      [".github/workflows/**", ".gitlab-ci.yml", ".circleci/**", "Jenkinsfile"]
+  schema:  ["**/migrations/**", "**/schema/**/*.sql", "**/*schema*.sql", "**/*.prisma"]
+  surface: ["**/models/**", "**/*_model.*", "**/*_models.*", "**/openapi*.y*ml", "**/*.proto"]
+  ui:      ["**/screens/**", "**/widgets/**", "**/components/**", "**/pages/**", "**/views/**", "**/*.css", "**/*.scss", "**/*.html", "**/*.tsx", "**/*.jsx", "**/*.vue", "**/*.svelte"]
+keywords:                   # flag -> whole words in the diff's added lines, any case
+  auth:   [password, jwt, oauth, authorize, authenticate]
+  crypto: [encrypt, decrypt, hmac, private_key]
+  pii:    [date_of_birth, passport]
+  input:  [deserialize, pickle]
+crew:                       # flag -> the check it adds
+  auth: security-reviewer
+  crypto: security-reviewer
+  pii: security-reviewer
+  input: security-reviewer
+  infra: infra-reviewer
+  ci: infra-reviewer
+  surface: surface-reviewer
+  ui: device-qa
+  schema: bar-raiser
+api_patterns:               # an added line matching one makes the change "a new API"
+  - '@(app|router|api|bp)\.(get|post|put|patch|delete)\('
+  - '\b(app|router)\.(get|post|put|patch|delete)\(\s*[''"]/'
+module_markers: [__init__.py, package.json, pubspec.yaml, go.mod, Cargo.toml, pyproject.toml]
+
+modes:
+  read-only:
+    bash_allow:             # regexes; every command in a read-only agent's Bash call must match one
+      - '^(cd|cat|head|tail|wc|ls|find|stat|file|sort|uniq|cut|tr|jq|diff|cmp|rg|grep|echo|pwd|which|tree|true)\b'
+      - '^sed -n\b'
+      - '^git (status|diff|log|show|blame|grep|ls-files|rev-parse|merge-base|cat-file|branch --show-current)\b'
+      - '^consortium (explain|checks|brief-check|runs)\b'
+capabilities:
+  device:
+    bash_allow: ['^(adb|idb|maestro|emulator)\b', '^xcrun simctl\b']
+guard:
+  deny:                     # regexes refused in any agent's command
+    - '\bgit\s+(?:(?:-C|-c)\s+\S+\s+|--?[\w-]+(?:=\S+)?\s+)*(commit|push|tag|merge|rebase)\b'   # the subcommand, after any global options
+    - '\bgh\s+(pr\s+(create|merge)|release)\b'
+    - '--no-verify\b'
+  deny_make: []             # make target globs refused inside agents; a repo lists its deploy targets
+test_paths: ["**/test/**", "**/tests/**", "**/__tests__/**", "**/*_test.*", "**/test_*.py", "**/*.test.*", "**/*.spec.*", "e2e/**"]
+
+brief:
+  sections:
+    read-only:      [Task, Scope, Report]
+    worktree-write: [Task, Context, Scope, Do not change, Premises, Tests, Done means, Forbidden, Stop when, Report]
+    operate:        [Task, Context, Scope, Do not change, Done means, Forbidden, Stop when, Report]
+  search_commands: ['^(rg|git grep|grep -r[a-zA-Z]*)\b']   # "found by:" commands the check may rerun
+  raw_commands: []          # regexes a brief may not use; a repo lists the raw commands its locking make targets wrap
+  word_numbers: [one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve]
+
+locks:
+  disk_floor_gb: 0          # 0 = no floor
+  wait_seconds: 3600
+
+worktree:
+  dir: .worktrees           # --new-worktree puts worktrees here, relative to the main checkout
+  setup: []                 # commands run in a new worktree, under the disk lock
+
+gate:
+  command: auto             # auto: `make test` if the Makefile has it, else `npm test`, else `pytest`
+  before: []
+  after: []
+  locks: []
+  flakes_file: null         # a Markdown list of known flakes, read by the ci-gate agent
+
+runs:
+  quota_patterns: ['(?i)usage limit', '(?i)rate limit', '(?i)\bquota\b', '\b429\b']
+  secret_patterns:
+    - 'AKIA[0-9A-Z]{16}'
+    - '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+    - 'gh[pousr]_[A-Za-z0-9]{36,}'
+    - 'sk-[A-Za-z0-9_-]{20,}'
+    - 'xox[baprs]-[A-Za-z0-9-]{10,}'
+
+agents: {}                  # per-agent patches: agents.<name>.{app, tier, model, effort, timeout_minutes, locks, notes, done_means, forbidden, triggers, knowledge}
