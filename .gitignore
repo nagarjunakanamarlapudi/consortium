@@ -2,3 +2,5 @@
 .DS_Store
 *.log
 .worktrees/
+__pycache__/
+.pytest_cache/
