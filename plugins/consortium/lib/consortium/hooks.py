@@ -78,7 +78,7 @@ def _pre_agent(payload, env, cwd, repo):
     job, jobs = _job(tool.get("subagent_type", ""), repo)
     if job is None:
         return None
-    task = brief.parse_brief(tool.get("prompt", ""))
+    task = brief.parse_brief(brief.brief_in_prompt(tool.get("prompt", "")))
     settings = config.load_settings(repo, task.front)
     run = registry.resolve_agent(job.name, settings, jobs, brief=task.front, manager_app="claude")
     findings = brief.check_brief(task, job, run.mode, repo or cwd, settings)

@@ -124,6 +124,51 @@ def test_pre_agent_allows_a_good_brief(repo):
     assert handle("pre-agent", data) is None
 
 
+@pytest.mark.parametrize("prefix", [
+    "",
+    "## Notes from this repo\n- Read `notes.md`.\n\n",
+    "Working repository: the assigned worktree.\n\n---\n",
+])
+def test_pre_agent_uses_the_briefs_worktree_after_preamble(repo, tmp_path, prefix):
+    worktree = tmp_path / "worktree"
+    (worktree / "shop").mkdir(parents=True)
+    (repo / "notes.md").write_text("Local conventions.\n")
+    assert not (repo / "shop").exists()
+    assert not (worktree / "notes.md").exists()
+    data = payload("pre-agent", repo)
+    data["tool_input"]["prompt"] = prefix + (
+        f"---\nworktree: {worktree}\n---\n\n"
+        "## Task\nRead.\n## Scope\n`shop/`\n## Report\nfindings.v1\n")
+    assert handle("pre-agent", data) is None
+
+
+def test_pre_agent_checks_dictated_values_after_notes(repo):
+    data = payload("pre-agent", repo)
+    data["tool_input"]["prompt"] = (
+        "## Notes from this repo\n- Follow local conventions.\n\n"
+        "---\ndictated: ['Keep this wording.']\n---\n"
+        "## Task\nRead.\n## Scope\nNo files.\n"
+        "## Do not change\nOther wording.\n## Report\nfindings.v1\n")
+    assert "dictated-verbatim:" in denied(handle("pre-agent", data))
+
+
+def test_pre_agent_keeps_device_front_matter_after_notes(repo):
+    data = payload("pre-agent", repo, "consortium:fixture-device")
+    data["tool_input"]["prompt"] = (
+        "## Notes from this repo\n- Follow local conventions.\n\n"
+        "---\ndevice: simulator-1\n---\n"
+        "## Task\nRead.\n## Scope\nNo files.\n## Report\nfindings.v1\n")
+    assert handle("pre-agent", data) is None
+
+
+def test_pre_agent_ignores_paths_in_notes_without_front_matter(repo):
+    data = payload("pre-agent", repo)
+    data["tool_input"]["prompt"] = (
+        "## Notes from this repo\n- Read `other-checkout/notes.md`.\n\n"
+        "## Task\nRead.\n## Scope\nNo files.\n## Report\nfindings.v1\n")
+    assert handle("pre-agent", data) is None
+
+
 @pytest.mark.parametrize("agent", ["Explore", "other:fixture-reader", "consortium:spec-compliance-reviewer", "consortium:missing"])
 def test_pre_agent_ignores_old_format_and_other_agents(repo, agent):
     assert handle("pre-agent", payload("pre-agent", repo, agent)) is None

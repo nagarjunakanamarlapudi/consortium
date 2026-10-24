@@ -30,12 +30,10 @@ class Finding:
     message: str
 
 
-def parse_brief(text: str) -> Brief:
-    front, body = parse_front_matter(text)
-    sections = {}
-    current = None
+def _headings(lines):
+    """Pair each line with the section name it opens, or None; a heading inside a fenced block opens none."""
     fence = None
-    for line in body.splitlines():
+    for line in lines:
         marker = re.match(r"^\s*(`{3,}|~{3,})", line)
         if marker:
             delimiter = marker[1]
@@ -44,8 +42,43 @@ def parse_brief(text: str) -> Brief:
             elif delimiter[0] == fence[0] and len(delimiter) >= len(fence):
                 fence = None
         heading = re.match(r"^##\s+(.+?)\s*$", line) if fence is None and not marker else None
-        if heading:
-            current = heading[1].strip().removesuffix(":").strip().lower()
+        yield line, heading[1].strip().removesuffix(":").strip().lower() if heading else None
+
+
+def brief_in_prompt(text: str) -> str:
+    """Find a brief after an Agent prompt's notes or dispatcher preamble."""
+    lines = text.splitlines(keepends=True)
+    if lines and lines[0].strip() == "---":
+        return text
+    task = next((index for index, (_, name) in enumerate(_headings(lines)) if name == "task"), None)
+    if task is None:
+        return text
+
+    start = task
+    closing = task - 1
+    while closing >= 0 and not lines[closing].strip():
+        closing -= 1
+    if closing >= 0 and lines[closing].strip() == "---":
+        for opening in range(closing - 1, -1, -1):
+            if lines[opening].strip() != "---":
+                continue
+            try:
+                front = yaml.safe_load("".join(lines[opening + 1:closing]))
+            except yaml.YAMLError:
+                break
+            if isinstance(front, dict) and front:
+                start = opening
+            break
+    return "".join(lines[start:])
+
+
+def parse_brief(text: str) -> Brief:
+    front, body = parse_front_matter(text)
+    sections = {}
+    current = None
+    for line, heading in _headings(body.splitlines()):
+        if heading is not None:
+            current = heading
             sections.setdefault(current, [])
         elif current is not None:
             sections[current].append(line)
