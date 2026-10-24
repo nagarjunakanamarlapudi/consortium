@@ -149,6 +149,8 @@ def test_run_records_report_tokens_and_one_log_line(run_cli, launch_case, monkey
         rd.name, "scratch-searcher", "read-only", "all", str(launch_case[0])]
     guard = json.loads(env["CONSORTIUM_GUARD"])
     assert guard["deny"] and guard["bash_allow"] and guard["deny_make"] == []
+    assert guard.get("deny_in_repo") == load_settings(launch_case[0]).get("guard.deny_in_repo", [])
+    assert guard["deny_in_repo"]
     assert all("never-persist-this-environment-value" not in file.read_text() for file in rd.iterdir())
     launcher.finalize(rd.name, 0)
     assert len((paths.state_home() / "runs.jsonl").read_text().splitlines()) == 1
@@ -282,6 +284,95 @@ def test_shims_refuse_push_and_allow_status(tmp_path, name, argv, denied):
         assert "is not allowed inside an agent run; the manager commits, pushes and deploys" in result.stderr
     else:
         assert json.loads(result.stdout) == argv
+
+
+@pytest.fixture
+def shim_repos(tmp_path):
+    run = tmp_path / "run repo"
+    scratch = tmp_path / "scratch repo"
+    for repo in (run, scratch):
+        repo.mkdir()
+        git(repo, "init", "--quiet")
+    env = dict(os.environ, PATH=str(SHIMS) + os.pathsep + os.environ["PATH"],
+               CONSORTIUM_WORKTREE=str(run), CONSORTIUM_GUARD=json.dumps(load_settings(None).get("guard")),
+               GIT_AUTHOR_NAME="Fixture", GIT_AUTHOR_EMAIL="fixture@example.invalid",
+               GIT_COMMITTER_NAME="Fixture", GIT_COMMITTER_EMAIL="fixture@example.invalid")
+    return run, scratch, env
+
+
+def shim_git(cwd, env, *args):
+    return subprocess.run([str(SHIMS / "git"), *args], cwd=cwd, env=env, capture_output=True, text=True)
+
+
+def test_shim_allows_a_commit_in_a_separate_repository(shim_repos):
+    run, scratch, env = shim_repos
+    result = shim_git(run, env, "-C", str(scratch), "commit", "--allow-empty", "-m", "test fixture")
+    assert result.returncode == 0, result.stderr
+    assert git(scratch, "log", "-1", "--format=%s") == "test fixture"
+    assert git(scratch, "rev-list", "--count", "HEAD") == "1"
+
+
+def test_shim_allows_a_scratch_commit_selected_by_git_environment(shim_repos):
+    run, scratch, env = shim_repos
+    env.update(GIT_DIR=str(scratch / ".git"), GIT_WORK_TREE=str(scratch))
+    result = shim_git(run, env, "commit", "--allow-empty", "-m", "test fixture")
+    assert result.returncode == 0, result.stderr
+    assert git(scratch, "log", "-1", "--format=%s") == "test fixture"
+    assert git(scratch, "rev-list", "--count", "HEAD") == "1"
+    assert git(run, "rev-list", "--all") == ""
+
+
+@pytest.mark.parametrize("route", ["cwd", "-C", "GIT_DIR", "worktree", "main"])
+def test_shim_refuses_a_commit_in_the_runs_repository(shim_repos, tmp_path, route):
+    run, scratch, env = shim_repos
+    cwd, options = run, []
+    if route == "-C":
+        cwd, options = scratch, ["-C", str(run)]
+    elif route == "GIT_DIR":
+        cwd = scratch
+        env["GIT_DIR"] = str(run / ".git")
+    elif route in {"worktree", "main"}:
+        linked = add_worktree(run, tmp_path / "linked")
+        if route == "worktree":
+            cwd = linked
+        else:
+            env["CONSORTIUM_WORKTREE"] = str(linked)
+    result = shim_git(cwd, env, *options, "commit", "--allow-empty", "-m", "test fixture")
+    assert result.returncode == 126, result.stderr
+    assert "is not allowed inside an agent run; the manager commits, pushes and deploys" in result.stderr
+    assert git(run, "rev-list", "--all") == ""
+
+
+@pytest.mark.parametrize("worktree", [None, "", "missing", "not a repo"])
+def test_shim_refuses_a_commit_when_the_run_repository_cannot_be_resolved(shim_repos, tmp_path, worktree):
+    run, scratch, env = shim_repos
+    if worktree is None:
+        env.pop("CONSORTIUM_WORKTREE")
+    elif worktree == "":
+        env["CONSORTIUM_WORKTREE"] = ""
+    else:
+        path = tmp_path / worktree
+        if worktree == "not a repo":
+            path.mkdir()
+        env["CONSORTIUM_WORKTREE"] = str(path)
+    result = shim_git(scratch, env, "commit", "--allow-empty", "-m", "test fixture")
+    assert result.returncode == 126, result.stderr
+    assert "is not allowed inside an agent run" in result.stderr
+    assert git(scratch, "rev-list", "--all") == ""
+
+
+def test_shim_refuses_a_commit_when_the_command_repository_cannot_be_resolved(shim_repos, tmp_path):
+    _, _, env = shim_repos
+    result = shim_git(tmp_path, env, "commit", "--allow-empty", "-m", "test fixture")
+    assert result.returncode == 126, result.stderr
+    assert "is not allowed inside an agent run" in result.stderr
+
+
+def test_shim_refuses_push_in_a_separate_repository(shim_repos):
+    _, scratch, env = shim_repos
+    result = shim_git(scratch, env, "push")
+    assert result.returncode == 126, result.stderr
+    assert "is not allowed inside an agent run" in result.stderr
 
 
 def test_detached_run_in_a_private_tmux_server(run_cli, launch_case, monkeypatch):

@@ -194,7 +194,8 @@ def _environment(meta, task, settings):
     env.update({"CONSORTIUM_RUN": meta["run_id"], "CONSORTIUM_AGENT": meta["agent"],
                 "CONSORTIUM_MODE": meta["mode"], "CONSORTIUM_WRITE_SCOPE": meta["write_scope"],
                 "CONSORTIUM_WORKTREE": meta["worktree"], "CONSORTIUM_GUARD": json.dumps({
-                    "deny": settings.get("guard.deny", []), "deny_make": settings.get("guard.deny_make", []),
+                    "deny": settings.get("guard.deny", []), "deny_in_repo": settings.get("guard.deny_in_repo", []),
+                    "deny_make": settings.get("guard.deny_make", []),
                     "bash_allow": allow}),
                 "PATH": str(paths.package_root() / "lib/consortium/shims") + os.pathsep + env.get("PATH", "")})
     return env

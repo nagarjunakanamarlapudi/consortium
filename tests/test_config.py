@@ -158,8 +158,24 @@ def test_glob_match(path, pattern, expected):
     ("echo $(git push)", True), ("echo `git commit -m x`", True), ("git push;", True),
     ("git merge-base a b", False), ("git commit-tree abc", False), ("git diff -- push.py", False),
     ("git log --grep=commit", False), ("git status", False), ("gh pr view 3", False),
+    ("git -c push.default=current status", False), ("git -c commit.gpgsign=false init -q", False),
+    ("git -C x -c user.name=a -c commit.gpgsign=false init", False),
+    ("git -c x=y -c merge.ff=false merge main", True), ("git stash push", False),
+    ("git -c rebase.autoStash=true pull", False),
 ])
 def test_default_guard_denies_writes_and_allows_reads(command, denied):
     import re
-    patterns = load_settings(None).get("guard.deny")
+    settings = load_settings(None)
+    patterns = settings.get("guard.deny") + settings.get("guard.deny_in_repo", [])
     assert any(re.search(pattern, command) for pattern in patterns) is denied
+
+
+def test_default_guard_scopes_commit_rules_but_not_push():
+    import re
+    settings = load_settings(None)
+    deny = settings.get("guard.deny")
+    deny_in_repo = settings.get("guard.deny_in_repo", [])
+    assert any(re.search(pattern, "git push") for pattern in deny)
+    for command in ("git commit -m x", "git tag v1", "git merge main", "git rebase main"):
+        assert not any(re.search(pattern, command) for pattern in deny), command
+        assert any(re.search(pattern, command) for pattern in deny_in_repo), command

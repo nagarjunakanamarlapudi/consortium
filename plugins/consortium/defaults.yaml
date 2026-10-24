@@ -64,10 +64,12 @@ capabilities:
   device:
     bash_allow: ['^(adb|idb|maestro|emulator)\b', '^xcrun simctl\b']
 guard:
-  deny:                     # regexes refused in any agent's command
-    - '\bgit\s+(?:(?:-C|-c)\s+\S+\s+|--?[\w-]+(?:=\S+)?\s+)*(commit|push|tag|merge|rebase)(?![\w-])'   # the subcommand, after any global options; not merge-base
+  deny:                     # regexes refused in any agent's command, in any repository
+    - '\bgit\s+(?:(?:-C|-c)\s+\S+\s+|--?[\w-]+(?:=\S+)?\s+)*push(?![\w.=-])'   # after any global options; not stash push or a push.* config key
     - '\bgh\s+(pr\s+(create|merge)|release)\b'
     - '--no-verify\b'
+  deny_in_repo:             # regexes refused when the command acts on the run's own repository; a scratch repository is fine
+    - '\bgit\s+(?:(?:-C|-c)\s+\S+\s+|--?[\w-]+(?:=\S+)?\s+)*(commit|tag|merge|rebase)(?![\w.=-])'   # the subcommand, after any global options; not merge-base or a commit.* config key
   deny_make: []             # make target globs refused inside agents; a repo lists its deploy targets
 test_paths: ["**/test/**", "**/tests/**", "**/__tests__/**", "**/*_test.*", "**/test_*.py", "**/*.test.*", "**/*.spec.*", "e2e/**"]
 

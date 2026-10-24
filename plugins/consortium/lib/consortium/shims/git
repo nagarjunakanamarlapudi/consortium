@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import shlex
 import shutil
+import subprocess
 import sys
 
 
@@ -69,6 +70,20 @@ def make_targets(args):
             yield arg
 
 
+def common_dir(binary, options, env=None):
+    if binary is None:
+        return None
+    try:
+        result = subprocess.run([binary, *options, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                capture_output=True, text=True, env=env)
+        path = result.stdout.strip()
+        if result.returncode or not os.path.isdir(path):
+            return None
+        return os.path.realpath(path)
+    except (OSError, ValueError):
+        return None
+
+
 def main():
     name = globals().get("COMMAND", Path(sys.argv[0]).name)
     args = sys.argv[1:]
@@ -79,24 +94,35 @@ def main():
         if name in {"git", "gh"}:
             candidates.append(shlex.join([name, *command_args(name, args)]))
         denied = any(re.search(pattern, candidate) for pattern in guard.get("deny", []) for candidate in candidates)
+        denied_in_repo = any(re.search(pattern, candidate) for pattern in guard.get("deny_in_repo", [])
+                             for candidate in candidates)
         if name == "make":
             denied = denied or any(glob_match(target, pattern) for target in make_targets(args)
                                    for pattern in guard.get("deny_make", []))
     except (ValueError, TypeError, AttributeError, re.error):
         denied = True
+    if not denied:
+        own = Path(__file__).resolve().parent
+        entries = os.environ.get("PATH", "").split(os.pathsep)
+        positions = [index for index, entry in enumerate(entries) if Path(entry or ".").resolve() == own]
+        after = entries[positions[0] + 1:] if positions else entries
+        after = [entry for entry in after if Path(entry or ".").resolve() != own]
+        binary = shutil.which(name, path=os.pathsep.join(after))
+        if denied_in_repo:
+            real_git = shutil.which("git", path=os.pathsep.join(after))
+            options = args[:len(args) - len(command_args(name, args))]
+            command_repo = common_dir(real_git, options)
+            worktree = os.environ.get("CONSORTIUM_WORKTREE")
+            run_env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+            run_repo = common_dir(real_git, ["-C", worktree], env=run_env) if worktree else None
+            denied = command_repo is None or run_repo is None or command_repo == run_repo
+        if binary is None and not denied:
+            print(f"consortium: no real {name} found after the guard shim on PATH", file=sys.stderr)
+            return 127
     if denied:
         print(f"consortium: {command} is not allowed inside an agent run; the manager commits, pushes and deploys",
               file=sys.stderr)
         return 126
-    own = Path(__file__).resolve().parent
-    entries = os.environ.get("PATH", "").split(os.pathsep)
-    positions = [index for index, entry in enumerate(entries) if Path(entry or ".").resolve() == own]
-    after = entries[positions[0] + 1:] if positions else entries
-    after = [entry for entry in after if Path(entry or ".").resolve() != own]
-    binary = shutil.which(name, path=os.pathsep.join(after))
-    if binary is None:
-        print(f"consortium: no real {name} found after the guard shim on PATH", file=sys.stderr)
-        return 127
     os.execv(binary, [binary, *args])
 
 
