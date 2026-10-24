@@ -236,8 +236,11 @@ def check_brief(brief: Brief, job: JobDescription, mode: str, repo: Path, settin
                 and not re.search(r"\b(?:about|roughly|approximately)\b|~", line, re.IGNORECASE)):
             findings.append(Finding("no-exact-count-stop", f"exact count used with a stop signal: {line.strip()}"))
 
-    # A file the task creates or deletes still brings its language's checks.
+    # A file the task creates or deletes still brings its language's checks. A mode whose briefs have no Done means
+    # (read-only) runs no checks, so its Scope brings none.
     scope = [path for _, path in _path_candidates(sections.get("scope", ""), created=True)]
+    if "Done means" not in settings.get(f"brief.sections.{mode}", []):
+        scope = []
     for language, extensions in settings.get("languages", {}).items():
         if not any(Path(path).suffix in extensions for path in scope):
             continue

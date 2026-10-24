@@ -300,6 +300,14 @@ def test_cli_usage_errors(run_cli, sample_repo, tmp_path, case):
         assert "fixture-legacy has no consortium: block; it belongs to the old workflow" in result.stderr
 
 
+def test_a_read_only_brief_needs_no_language_checks(sample_repo):
+    reader = write_job(sample_repo, name="fixture-reader", mode="read-only")
+    text = (FIXTURES / "good_read_only.md").read_text()
+    text = text.replace("## Done means\nName the checks `make lint` and `pytest tests` in the review.\n\n", "")
+    assert "## Done means" not in text and "`shop/distance.py`" in text
+    assert findings(text, sample_repo, reader) == []
+
+
 def test_created_scope_files_still_need_their_language_checks(sample_repo, writer):
     text = good_text().replace("- `shop/distance.py`", "- create: `shop/rates.py`")
     assert findings(text, sample_repo, writer) == []
