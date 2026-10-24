@@ -197,3 +197,12 @@ def test_compose_prompt_parts_in_order(package):
         "status", "summary", "decisions", "evidence", "changes", "checks", "questions", "payload"
     ))
     assert "## Notes from this repo" not in compose_prompt(registry[run.name], replace(run, notes=()), "")
+
+
+def test_compose_prompt_keeps_dispatch_with_the_manager(package):
+    registry = load_registry(None)
+    run = resolve_agent("sample-reader", load_settings(None), registry, manager_app="codex")
+    header = compose_prompt(registry[run.name], run, "Do the scoped task.").split("\n\n")[0]
+    assert header.startswith("# You are the sample-reader agent (job description v2)\n")
+    assert "Do this brief yourself." in header
+    assert "agent-recipes and team-dev-workflow skills" in header

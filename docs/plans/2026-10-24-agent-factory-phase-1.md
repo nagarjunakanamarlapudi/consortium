@@ -385,7 +385,9 @@ A repo or user patch to `mode`, `report`, `station`, `version` or the body raise
 `<repo>/.consortium/agents/` whose name is already a plugin agent.
 
 `compose_prompt` builds five parts, in this order:
-1. `# You are the <name> agent (job description v<version>)`
+1. `# You are the <name> agent (job description v<version>)`, then one line: "Do this brief yourself. Dispatching
+   agents, and the agent-recipes and team-dev-workflow skills, are the manager's: never use them unless your brief
+   says to." A Codex agent sees the same plugin skills as its manager.
 2. The body
 3. `## Notes from this repo`, with one bullet per note, only when there are notes
 4. `## Your brief`, then the brief's text
