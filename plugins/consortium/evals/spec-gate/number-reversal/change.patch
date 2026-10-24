@@ -1,0 +1,10 @@
+--- a/shop/pricing.py
++++ b/shop/pricing.py
+@@ -1,6 +1,6 @@
+ """Price helpers."""
+ 
+-PRICE_THRESHOLDS = [5, 10, 15, 20]
++PRICE_THRESHOLDS = [5, 10, 20, 15]
+ 
+ 
+ def total_price(unit_price: int, quantity: int) -> int:

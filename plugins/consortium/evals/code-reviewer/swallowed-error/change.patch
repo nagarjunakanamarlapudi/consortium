@@ -1,0 +1,13 @@
+--- a/shop/pricing.py
++++ b/shop/pricing.py
+@@ -3,3 +3,10 @@
+ 
+ def total_price(unit_price: int, quantity: int) -> int:
+     return unit_price * quantity
++
++
++def save_price(path, price):
++    try:
++        path.write_text(str(price))
++    except Exception:
++        pass

@@ -1,0 +1,35 @@
+schema_version: '1.0'
+name: number-reversal
+runs: 1
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: Dispatch the consortium:spec-gate agent with the whole text of brief.md as its prompt. Then print its
+    final report verbatim and nothing else.
+  model: haiku
+  max_turns: 12
+  timeout_seconds: 900
+  allowed_tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
+  - Agent
+  - Edit
+  - Write
+  append_system_prompt: The brief.md in the user request is briefs/spec-gate/number-reversal/brief.md. The assigned
+    repository is repos/spec-gate/number-reversal/. Read that brief and dispatch the named plugin agent with its
+    whole text. Let the agent use its configured front matter model; do not override its model. The agent must work
+    in the assigned repository, not search the eval session root.
+graders:
+- type: regex
+  name: verdict
+  pattern: '"verdict"\s*:\s*"not_compliant"'
+- type: regex
+  name: pricing-finding
+  pattern: '"file"\s*:\s*"(?:[^"\n]*/)?shop/pricing\.py"'
+- type: tool_used
+  name: dispatch
+  tool: Agent
+  input_match: consortium:spec-gate
+  min: 1

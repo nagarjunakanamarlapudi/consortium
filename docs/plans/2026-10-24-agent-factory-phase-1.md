@@ -1044,8 +1044,10 @@ read-only agents until Task 15's probe says otherwise. It has no `PushNotificati
   `consortium eval AGENT [--case NAME] [--app claude|codex|both] [--runs N] [--repo DIR]`.
 
 A case is a `claude plugin eval` case and nothing more:
-- **`case.yaml`:** `schema_version: "1.0"`, `name`, `runs: 1`, `context.scaffold_script: ../../_fixtures/make_case_repo.sh`
-  (copies the sample repo, commits it, applies `change.patch` when present), and graders.
+- **`case.yaml`:** `schema_version: "1.0"`, `name`, `runs: 1`, `context.scaffold_script: scaffold.sh`, and graders.
+  `claude plugin eval` refuses a scaffold path outside the case folder, so each case has a two-line `scaffold.sh`
+  that runs the shared `_fixtures/make_case_repo.sh` with its own folder. The builder copies the sample repo,
+  applies and commits `setup.patch` when present, then applies `change.patch` uncommitted. Found at bring-up, 24 Oct.
 - **The prompt:** "Dispatch the consortium:<agent> agent with the whole text of brief.md as its prompt. Then print its
   final report verbatim and nothing else."
 - **Codex side:** `consortium eval` runs the same scaffold, sends `brief.md` through the launcher, and applies the

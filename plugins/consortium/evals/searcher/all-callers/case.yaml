@@ -1,0 +1,50 @@
+schema_version: '1.0'
+name: all-callers
+runs: 1
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: Dispatch the consortium:searcher agent with the whole text of brief.md as its prompt. Then print its final
+    report verbatim and nothing else.
+  model: haiku
+  max_turns: 12
+  timeout_seconds: 900
+  allowed_tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
+  - Agent
+  - Edit
+  - Write
+  append_system_prompt: The brief.md in the user request is briefs/searcher/all-callers/brief.md. The assigned repository
+    is repos/searcher/all-callers/. Read that brief and dispatch the named plugin agent with its whole text. Let
+    the agent use its configured front matter model; do not override its model. The agent must work in the assigned
+    repository, not search the eval session root.
+graders:
+- type: regex
+  name: definition
+  pattern: '"file"\s*:\s*"(?:[^"\n]*/)?shop/distance\.py"'
+- type: regex
+  name: test-distance
+  pattern: '"file"\s*:\s*"(?:[^"\n]*/)?tests/test_distance\.py"'
+- type: regex
+  name: test-store_card
+  pattern: '"file"\s*:\s*"(?:[^"\n]*/)?tests/test_store_card\.py"'
+- type: regex
+  name: test-search
+  pattern: '"file"\s*:\s*"(?:[^"\n]*/)?tests/test_search\.py"'
+- type: regex
+  name: test-feed
+  pattern: '"file"\s*:\s*"(?:[^"\n]*/)?tests/test_feed\.py"'
+- type: regex
+  name: test-share
+  pattern: '"file"\s*:\s*"(?:[^"\n]*/)?tests/test_share\.py"'
+- type: regex
+  name: test-notify
+  pattern: '"file"\s*:\s*"(?:[^"\n]*/)?tests/test_notify\.py"'
+- type: tool_used
+  name: dispatch
+  tool: Agent
+  input_match: consortium:searcher
+  min: 1

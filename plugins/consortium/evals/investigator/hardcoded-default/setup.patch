@@ -1,0 +1,11 @@
+--- a/shop/distance.py
++++ b/shop/distance.py
+@@ -3,3 +3,8 @@
+ 
+ def distance_km(metres: float) -> float:
+     return metres / 1000
++
++
++def distance_from_origin(destination, origin=None):
++    origin = origin or (0, 0)
++    return distance_km(sum((a - b) ** 2 for a, b in zip(destination, origin)) ** 0.5)

@@ -1,0 +1,34 @@
+schema_version: '1.0'
+name: rule-pairs
+runs: 1
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: Dispatch the consortium:test-designer agent with the whole text of brief.md as its prompt. Then print
+    its final report verbatim and nothing else.
+  model: haiku
+  max_turns: 12
+  timeout_seconds: 900
+  allowed_tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
+  - Agent
+  - Edit
+  - Write
+  append_system_prompt: The brief.md in the user request is briefs/test-designer/rule-pairs/brief.md. The assigned
+    repository is repos/test-designer/rule-pairs/. Read that brief and dispatch the named plugin agent with its
+    whole text. Let the agent use its configured front matter model; do not override its model. The agent must work
+    in the assigned repository, not search the eval session root.
+graders:
+- type: llm
+  name: rule-pairs
+  criteria: The report is design mode and contains a positive and negative case for EACH of R1 (quantity 1..10 inclusive),
+    R2 (signed in), R3 (sufficient stock). Each case has actionable setup/steps and a matching expected outcome,
+    derived from those rules.
+- type: tool_used
+  name: dispatch
+  tool: Agent
+  input_match: consortium:test-designer
+  min: 1

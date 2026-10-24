@@ -1,0 +1,32 @@
+schema_version: '1.0'
+name: known-flake
+runs: 1
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: Dispatch the consortium:ci-gate agent with the whole text of brief.md as its prompt. Then print its final
+    report verbatim and nothing else.
+  model: haiku
+  max_turns: 12
+  timeout_seconds: 900
+  allowed_tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
+  - Agent
+  - Edit
+  - Write
+  append_system_prompt: The brief.md in the user request is briefs/ci-gate/known-flake/brief.md. The assigned repository
+    is repos/ci-gate/known-flake/. Read that brief and dispatch the named plugin agent with its whole text. Let
+    the agent use its configured front matter model; do not override its model. The agent must work in the assigned
+    repository, not search the eval session root.
+graders:
+- type: regex
+  name: known-flake
+  pattern: '"failure_class"\s*:\s*"known_flake"'
+- type: tool_used
+  name: dispatch
+  tool: Agent
+  input_match: consortium:ci-gate
+  min: 1
