@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import time
 
 import pytest
@@ -151,7 +152,8 @@ def test_run_records_report_tokens_and_one_log_line(run_cli, launch_case, monkey
     assert guard["deny"] and guard["bash_allow"] and guard["deny_make"] == []
     assert guard.get("deny_in_repo") == load_settings(launch_case[0]).get("guard.deny_in_repo", [])
     assert guard["deny_in_repo"]
-    assert all("never-persist-this-environment-value" not in file.read_text() for file in rd.iterdir())
+    assert all("never-persist-this-environment-value" not in file.read_text()
+               for file in rd.iterdir() if file.is_file())
     launcher.finalize(rd.name, 0)
     assert len((paths.state_home() / "runs.jsonl").read_text().splitlines()) == 1
 
@@ -484,6 +486,126 @@ def test_session_env_args_send_only_differences_and_names_to_drop():
     server = {"SECRET": "s", "A": "1", "STALE": "old"}
     env = {"SECRET": "s", "A": "2", "NEW": "n"}
     assert launcher._session_env_args(server, env) == ["-e", "A=2", "-e", "NEW=n", "-e", "CONSORTIUM_UNSET=STALE"]
+
+
+@pytest.fixture
+def developer_tools(tmp_path, monkeypatch):
+    system = tmp_path / "system"
+    real = tmp_path / "developer tools"
+    other = tmp_path / "other"
+    for directory in (system, real, other):
+        directory.mkdir()
+    for name in ("git", "gh", "make"):
+        binary = real / name
+        binary.write_text(f"#!/bin/sh\nprintf '{name} works\\n'\n")
+        binary.chmod(0o755)
+    binary = system / "git"
+    binary.write_text("#!/bin/sh\nexit 1\n")
+    binary.chmod(0o755)
+    xcrun = other / "xcrun"
+    xcrun.write_text(
+        f"#!{sys.executable}\n"
+        "import os, sys, time\n"
+        "from pathlib import Path\n"
+        f"root = Path({str(tmp_path)!r})\n"
+        "with (root / 'calls').open('a') as stream:\n"
+        "    stream.write(' '.join(sys.argv[1:]) + '\\n')\n"
+        "assert len(sys.argv) == 3 and sys.argv[1] == '--find'\n"
+        "mode = os.environ.get('FAKE_XCRUN_MODE')\n"
+        "if mode == 'fail':\n"
+        "    print(root / 'developer tools' / sys.argv[2])\n"
+        "    sys.exit(1)\n"
+        "if mode == 'timeout':\n"
+        "    time.sleep(10)\n"
+        "if mode == 'empty':\n"
+        "    sys.exit(0)\n"
+        "print(root / ('missing' if mode == 'missing' else 'developer tools') / sys.argv[2])\n"
+    )
+    xcrun.chmod(0o755)
+    monkeypatch.setenv("PATH", os.pathsep.join([str(other), str(system)]))
+    monkeypatch.setattr(launcher.sys, "platform", "darwin")
+    monkeypatch.setattr(launcher, "SYSTEM_BIN_DIR", system)
+    meta = {"run_id": "developer-tools", "agent": "searcher", "mode": "read-only",
+            "write_scope": "all", "worktree": str(tmp_path), "capabilities": ["read"]}
+    return meta, briefs.parse_brief(""), load_settings(None)
+
+
+@pytest.mark.parametrize("mode", ["read-only", "worktree-write"])
+@pytest.mark.parametrize("name", ["git", "gh", "make"])
+def test_environment_links_macos_developer_tools(developer_tools, tmp_path, mode, name):
+    meta, task, settings = developer_tools
+    meta["mode"] = mode
+    if name != "git":
+        (tmp_path / "system/git").rename(tmp_path / "system" / name)
+    inherited = os.environ["PATH"]
+    env = launcher._environment(meta, task, settings)
+    binary_dir = paths.state_home() / "runs/developer-tools/bin"
+    assert env["PATH"] == os.pathsep.join([str(SHIMS), str(binary_dir), inherited])
+    assert (binary_dir / name).is_symlink()
+    assert (binary_dir / name).readlink() == tmp_path / "developer tools" / name
+    result = subprocess.run([str(binary_dir / name)], capture_output=True, text=True)
+    assert (result.returncode, result.stdout) == (0, f"{name} works\n")
+
+
+def test_environment_only_links_commands_resolving_inside_system_folder(developer_tools, tmp_path):
+    (tmp_path / "other/git").symlink_to(tmp_path / "developer tools/git")
+    (tmp_path / "system/make").write_bytes((tmp_path / "system/git").read_bytes())
+    (tmp_path / "system/make").chmod(0o755)
+    (tmp_path / "system/gh").symlink_to(tmp_path / "developer tools/gh")
+    env = launcher._environment(*developer_tools)
+    binary_dir = paths.state_home() / "runs/developer-tools/bin"
+    assert env["PATH"].split(os.pathsep)[:2] == [str(SHIMS), str(binary_dir)]
+    assert sorted(path.name for path in binary_dir.iterdir()) == ["make"]
+    assert (binary_dir / "make").readlink() == tmp_path / "developer tools/make"
+    assert (tmp_path / "calls").read_text() == "--find make\n"
+
+
+def test_environment_preserves_an_earlier_non_system_git(developer_tools, tmp_path):
+    (tmp_path / "other/git").symlink_to(tmp_path / "developer tools/git")
+    inherited = os.environ["PATH"]
+    env = launcher._environment(*developer_tools)
+    assert env["PATH"] == str(SHIMS) + os.pathsep + inherited
+    assert not (tmp_path / "calls").exists()
+
+
+@pytest.mark.parametrize("mode", ["fail", "timeout", "missing", "empty", "not-executable", "no-xcrun"])
+def test_environment_keeps_path_when_xcrun_cannot_resolve(developer_tools, tmp_path, monkeypatch, mode):
+    monkeypatch.setenv("FAKE_XCRUN_MODE", mode)
+    if mode == "not-executable":
+        (tmp_path / "developer tools/git").chmod(0o644)
+    elif mode == "no-xcrun":
+        (tmp_path / "other/xcrun").unlink()
+    inherited = os.environ["PATH"]
+    started = time.monotonic()
+    env = launcher._environment(*developer_tools)
+    assert time.monotonic() - started < 8
+    assert env["PATH"] == str(SHIMS) + os.pathsep + inherited
+    assert not (paths.state_home() / "runs/developer-tools/bin/git").is_symlink()
+
+
+@pytest.mark.parametrize("platform", ["linux", "win32"])
+def test_environment_leaves_developer_tools_alone_off_macos(developer_tools, tmp_path, monkeypatch, platform):
+    monkeypatch.setattr(launcher.sys, "platform", platform)
+    inherited = os.environ["PATH"]
+    env = launcher._environment(*developer_tools)
+    assert env["PATH"] == str(SHIMS) + os.pathsep + inherited
+    assert not (tmp_path / "calls").exists()
+
+
+def test_environment_can_link_developer_tools_again_for_tmux(developer_tools, tmp_path, monkeypatch):
+    env = launcher._environment(*developer_tools)
+    binary_dir = paths.state_home() / "runs/developer-tools/bin"
+    assert (binary_dir / "git").is_symlink()
+    (binary_dir / "git").unlink()
+    (binary_dir / "git").symlink_to(tmp_path / "missing")
+    monkeypatch.setenv("PATH", env["PATH"])
+    env = launcher._environment(*developer_tools)
+    assert env["PATH"].split(os.pathsep)[:2] == [str(SHIMS), str(binary_dir)]
+    assert (binary_dir / "git").readlink() == tmp_path / "developer tools/git"
+    monkeypatch.setenv("PATH", env["PATH"])
+    env = launcher._environment(*developer_tools)
+    assert env["PATH"].split(os.pathsep)[:2] == [str(SHIMS), str(binary_dir)]
+    assert (binary_dir / "git").readlink() == tmp_path / "developer tools/git"
 
 
 def test_environment_drops_the_names_tmux_could_not_unset(launch_case, monkeypatch):
