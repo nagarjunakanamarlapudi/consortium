@@ -48,6 +48,13 @@ def test_hooks_links_into_the_package():
     assert (hooks / "guard.py").is_file()
 
 
+def test_evals_links_into_the_package():
+    evals = ROOT / "evals"
+    assert evals.is_symlink()
+    assert evals.resolve() == ROOT / "plugins/consortium/evals"
+    assert (evals / "_fixtures/make_case_repo.sh").is_file()
+
+
 def test_marketplaces_are_named_consortium_next_and_plugins_stay_consortium():
     for name in (".claude-plugin/marketplace.json", ".agents/plugins/marketplace.json"):
         marketplace = json.loads((ROOT / name).read_text())

@@ -1,0 +1,18 @@
+--- a/shop/pricing.py
++++ b/shop/pricing.py
+@@ -3,3 +3,7 @@
+ 
+ def total_price(unit_price: int, quantity: int) -> int:
+     return unit_price * quantity
++
++
++def quantity_steps(count):
++    return list(range(1, count))
+--- /dev/null
++++ b/tests/test_pricing.py
+@@ -0,0 +1,5 @@
++from shop.pricing import quantity_steps
++
++
++def test_quantity_steps():
++    assert quantity_steps(3) == [1, 2, 3]

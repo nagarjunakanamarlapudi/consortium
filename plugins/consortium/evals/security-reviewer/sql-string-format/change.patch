@@ -1,0 +1,10 @@
+--- a/shop/auth.py
++++ b/shop/auth.py
+@@ -3,3 +3,7 @@
+ 
+ def authenticated(user_id: str | None) -> bool:
+     return bool(user_id)
++
++
++def find_account(connection, username):
++    return connection.execute(f"SELECT * FROM accounts WHERE username = '{username}'").fetchone()

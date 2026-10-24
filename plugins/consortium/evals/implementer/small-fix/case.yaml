@@ -1,0 +1,36 @@
+schema_version: '1.0'
+name: small-fix
+runs: 1
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: Dispatch the consortium:implementer agent with the whole text of brief.md as its prompt. Then print its
+    final report verbatim and nothing else.
+  model: haiku
+  max_turns: 12
+  timeout_seconds: 900
+  allowed_tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
+  - Agent
+  - Edit
+  - Write
+  append_system_prompt: The brief.md in the user request is briefs/implementer/small-fix/brief.md. The assigned
+    repository is repos/implementer/small-fix/. Read that brief and dispatch the named plugin agent with its whole
+    text. Let the agent use its configured front matter model; do not override its model. The agent must work in
+    the assigned repository, not search the eval session root.
+graders:
+- type: regex
+  name: done
+  pattern: '"status"\s*:\s*"DONE"'
+- type: llm
+  name: passing-check
+  criteria: The report checks include pytest tests/test_pricing.py with exit_code 0, and make lint with exit_code
+    0. The report says the regression passed and the zero-count assertion was added.
+- type: tool_used
+  name: dispatch
+  tool: Agent
+  input_match: consortium:implementer
+  min: 1
