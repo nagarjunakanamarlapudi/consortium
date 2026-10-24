@@ -208,8 +208,13 @@ def _notes_block(notes: tuple) -> str:
     return "## Notes from this repo\n" + "\n".join(f"- {note}" for note in notes) if notes else ""
 
 
+AGENT_ONLY = ("Do this brief yourself. Dispatching agents, and the agent-recipes and team-dev-workflow skills, "
+              "are the manager's: never use them unless your brief says to.")
+
+
 def compose_prompt(job: JobDescription, run: AgentRun, brief_text: str) -> str:
-    parts = [f"# You are the {run.name} agent (job description v{run.version})", job.body.strip()]
+    # A Codex agent sees the same plugin skills as its manager; dispatching stays the manager's.
+    parts = [f"# You are the {run.name} agent (job description v{run.version})\n{AGENT_ONLY}", job.body.strip()]
     if run.notes:
         parts.append(_notes_block(run.notes))
     parts.append(f"## Your brief\n{brief_text}".rstrip())
