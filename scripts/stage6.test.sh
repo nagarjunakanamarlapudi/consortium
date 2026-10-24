@@ -3,6 +3,10 @@
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fails=0; ok(){ printf 'ok   - %s\n' "$1"; }; fail(){ printf 'FAIL - %s\n' "$1"; fails=$((fails+1)); }
+# node --check passes any file that uses `export`, even one with a syntax error (Node 24), so compile the script the
+# way the workflow runtime runs it: as an async function body, with meta no longer exported.
+compiles(){ node -e 'new (Object.getPrototypeOf(async function () {}).constructor)("args", "agent", "parallel", "phase", "log",
+  require("fs").readFileSync(process.argv[1], "utf8").replace("export const meta =", "const meta ="))' "$1" 2>/dev/null; }
 
 AGENTS="security-reviewer infra-reviewer test-designer"
 
@@ -21,7 +25,7 @@ done
 # 3. build.js accepts extraReviewers (conditional reviewers passed in by the skill)
 js="$ROOT/workflows/build.js"
 if grep -q "extraReviewers" "$js"; then ok "build.js handles extraReviewers"; else fail "build.js does not handle extraReviewers"; fi
-if command -v node >/dev/null 2>&1; then node --check "$js" 2>/dev/null && ok "build.js passes node --check" || fail "build.js syntax error"; else ok "node unavailable — skipped"; fi
+if command -v node >/dev/null 2>&1; then compiles "$js" && ok "build.js compiles" || fail "build.js syntax error"; else ok "node unavailable — skipped"; fi
 
 # 4. the playbook does change-type detection -> extraReviewers
 pb="$ROOT/skills/team-dev-workflow/references/experts-eval.md"

@@ -3,11 +3,15 @@
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fails=0; ok(){ printf 'ok   - %s\n' "$1"; }; fail(){ printf 'FAIL - %s\n' "$1"; fails=$((fails+1)); }
+# node --check passes any file that uses `export`, even one with a syntax error (Node 24), so compile the script the
+# way the workflow runtime runs it: as an async function body, with meta no longer exported.
+compiles(){ node -e 'new (Object.getPrototypeOf(async function () {}).constructor)("args", "agent", "parallel", "phase", "log",
+  require("fs").readFileSync(process.argv[1], "utf8").replace("export const meta =", "const meta ="))' "$1" 2>/dev/null; }
 
 # 1. plan-review.js accepts extraReviewers (parity with build.js)
 js="$ROOT/workflows/plan-review.js"
 if grep -q "extraReviewers" "$js"; then ok "plan-review.js handles extraReviewers"; else fail "plan-review.js missing extraReviewers"; fi
-if command -v node >/dev/null 2>&1; then node --check "$js" 2>/dev/null && ok "plan-review.js passes node --check" || fail "plan-review.js syntax error"; else ok "node unavailable — skipped"; fi
+if command -v node >/dev/null 2>&1; then compiles "$js" && ok "plan-review.js compiles" || fail "plan-review.js syntax error"; else ok "node unavailable — skipped"; fi
 
 # 2. registry documents the auto-discovery contract + the read-only heuristic
 reg="$ROOT/skills/team-dev-workflow/references/reviewer-registry.md"

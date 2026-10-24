@@ -3,14 +3,18 @@
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fails=0; ok(){ printf 'ok   - %s\n' "$1"; }; fail(){ printf 'FAIL - %s\n' "$1"; fails=$((fails+1)); }
+# node --check passes any file that uses `export`, even one with a syntax error (Node 24), so compile the script the
+# way the workflow runtime runs it: as an async function body, with meta no longer exported.
+compiles(){ node -e 'new (Object.getPrototypeOf(async function () {}).constructor)("args", "agent", "parallel", "phase", "log",
+  require("fs").readFileSync(process.argv[1], "utf8").replace("export const meta =", "const meta ="))' "$1" 2>/dev/null; }
 
 js="$ROOT/workflows/plan-review.js"
 # 1. script present with meta + reviewer agentTypes + schema + parallel
 if [ -f "$js" ] && grep -q "export const meta" "$js" && grep -q "consortium:test-designer" "$js" && grep -q "schema" "$js" && grep -q "parallel" "$js"; then ok "plan-review.js present (meta, reviewer agentTypes, schema, parallel)"; else fail "plan-review.js missing/incomplete"; fi
 
-# 2. JS syntax valid (node --check does not run the script, so workflow globals are fine)
+# 2. JS syntax valid (compiling does not run the script, so workflow globals are fine)
 if command -v node >/dev/null 2>&1; then
-  if node --check "$js" 2>/dev/null; then ok "plan-review.js passes node --check"; else fail "plan-review.js has a syntax error"; fi
+  if compiles "$js"; then ok "plan-review.js compiles"; else fail "plan-review.js has a syntax error"; fi
 else
   ok "node unavailable — syntax check skipped"
 fi
@@ -28,7 +32,7 @@ js2="$ROOT/workflows/build.js"
 if [ -f "$js2" ] && grep -q "export const meta" "$js2" && grep -q "consortium:implementer" "$js2" && grep -q "consortium:spec-gate" "$js2" && grep -q "consortium:bar-raiser" "$js2" && grep -q "schema" "$js2"; then ok "build.js present (meta, implementer + reviewer agentTypes, schema)"; else fail "build.js missing/incomplete"; fi
 
 # 6. build.js syntax
-if command -v node >/dev/null 2>&1; then node --check "$js2" 2>/dev/null && ok "build.js passes node --check" || fail "build.js syntax error"; else ok "node unavailable — build.js syntax check skipped"; fi
+if command -v node >/dev/null 2>&1; then compiles "$js2" && ok "build.js compiles" || fail "build.js syntax error"; else ok "node unavailable — build.js syntax check skipped"; fi
 
 # 7. implementer agent present with frontmatter
 ia="$ROOT/agents/implementer.md"
