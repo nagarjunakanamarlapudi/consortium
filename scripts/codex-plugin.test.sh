@@ -102,6 +102,7 @@ expected = {
     "bin": "plugins/consortium/bin",
     "hooks": "plugins/consortium/hooks",
     "scripts/effort.sh": "plugins/consortium/scripts/effort.sh",
+    "skills/agent-recipes/references": "plugins/consortium/skills/agent-recipes/references",
     "skills/app-interactive-mocks": "plugins/consortium/skills/app-interactive-mocks",
     "skills/team-dev-workflow/references": "plugins/consortium/skills/team-dev-workflow/references",
 }
@@ -161,8 +162,8 @@ for host_text, host_frontmatter, effort_command in (
     (claude_text, claude_frontmatter, 'bash "${CLAUDE_PLUGIN_ROOT}/scripts/effort.sh" --resolve'),
 ):
     normalized_frontmatter = " ".join(host_frontmatter.split())
-    assert "direct requests for interactive/clickable app mocks" in normalized_frontmatter
-    assert "use app-interactive-mocks" in normalized_frontmatter
+    assert "Use only when the agent-recipes playbook routes here" in normalized_frontmatter
+    assert "build, add, implement" not in normalized_frontmatter
     assert "refactor, design, fix" not in normalized_frontmatter
     assert all(trigger in host_text for trigger in mock_triggers)
     assert "use `app-interactive-mocks`" in host_text

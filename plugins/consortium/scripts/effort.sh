@@ -9,7 +9,7 @@ set -euo pipefail
 STATE_HOME="$HOME/.consortium"
 DEFAULT_TIER_FILE="$STATE_HOME/default-tier"
 VALID="off self-eval experts-eval bar-raiser-eval debate vibe-coding"
-DEFAULT="self-eval"
+DEFAULT="off"
 
 is_valid() { case " $VALID " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 is_sha256() { [[ "$1" =~ ^[[:xdigit:]]{64}$ ]]; }

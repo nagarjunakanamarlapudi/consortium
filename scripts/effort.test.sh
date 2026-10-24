@@ -95,7 +95,7 @@ git -C "$TEST_REPO" worktree add -q "$OTHER_WORKTREE" -b other-worktree
 run_in "$WORKSPACE" "" debate >/dev/null
 check "Git workspace override persists" "debate" "$(run_in "$WORKSPACE" "" --resolve)"
 check "workspace override beats environment" "debate" "$(run_in "$WORKSPACE" "experts-eval" --resolve)"
-check "other Git worktree starts without this override" "self-eval" "$(run_in "$OTHER_WORKTREE" "" --resolve)"
+check "other Git worktree starts without this override" "off" "$(run_in "$OTHER_WORKTREE" "" --resolve)"
 
 # A non-Git override uses the canonical directory hash under Consortium-owned state.
 run_in "$NON_GIT_WORKSPACE" "" off >/dev/null
