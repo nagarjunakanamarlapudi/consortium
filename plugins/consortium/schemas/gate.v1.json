@@ -1,0 +1,75 @@
+{
+  "type": "object",
+  "properties": {
+    "commit": {
+      "type": "string"
+    },
+    "command": {
+      "type": "string"
+    },
+    "exit_code": {
+      "type": "integer"
+    },
+    "failed_step": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "failure_class": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "real",
+        "known_flake",
+        "infra",
+        null
+      ]
+    },
+    "flake": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reruns": {
+      "type": "integer"
+    },
+    "cleanup": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step",
+          "exit_code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "log": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "commit",
+    "command",
+    "exit_code",
+    "failed_step",
+    "failure_class",
+    "flake",
+    "reruns",
+    "cleanup",
+    "log"
+  ],
+  "additionalProperties": false
+}

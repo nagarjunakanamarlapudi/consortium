@@ -1,0 +1,81 @@
+{
+  "type": "object",
+  "properties": {
+    "bug_class": {
+      "type": "string"
+    },
+    "instances": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "line",
+          "note"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "proposed_check": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "where": {
+          "type": "string"
+        },
+        "rule": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "where",
+        "rule"
+      ],
+      "additionalProperties": false
+    },
+    "exceptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "why": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "line",
+          "why"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "bug_class",
+    "instances",
+    "proposed_check",
+    "exceptions"
+  ],
+  "additionalProperties": false
+}
