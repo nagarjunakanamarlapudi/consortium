@@ -100,6 +100,7 @@ root = Path(sys.argv[1]).resolve()
 expected = {
     "agents": "plugins/consortium/job-descriptions",
     "bin": "plugins/consortium/bin",
+    "hooks": "plugins/consortium/hooks",
     "scripts/effort.sh": "plugins/consortium/scripts/effort.sh",
     "skills/app-interactive-mocks": "plugins/consortium/skills/app-interactive-mocks",
     "skills/team-dev-workflow/references": "plugins/consortium/skills/team-dev-workflow/references",

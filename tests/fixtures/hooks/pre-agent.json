@@ -1,0 +1,19 @@
+{
+  "session_id": "<SESSION_ID>",
+  "transcript_path": "<TRANSCRIPT_PATH>",
+  "cwd": "<CWD>",
+  "prompt_id": "<PROMPT_ID>",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "<LEVEL>"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "<DESCRIPTION>",
+    "prompt": "<PROMPT>",
+    "subagent_type": "Explore",
+    "model": "haiku"
+  },
+  "tool_use_id": "<TOOL_USE_ID>"
+}

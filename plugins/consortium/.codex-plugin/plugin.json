@@ -16,6 +16,7 @@
     "prototyping"
   ],
   "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Consortium",
     "shortDescription": "Tiered development workflows and app mocks",
