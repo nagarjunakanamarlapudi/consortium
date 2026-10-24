@@ -572,7 +572,7 @@ The rules, each named for the incident in the spec's table:
 | `paths-exist` | A path in the brief that does not exist | 29 Sep |
 | `premises-cited` | A `## Premises` bullet that cites no `path:line` that exists with the line in range, and is not exactly `none` | 10 Sep |
 | `no-exact-count-stop` | A line with an exact count (`exactly`, `expect`, `must be`, digits or `brief.word_numbers`) and a stop word (`stop`, `halt`, `abort`, `different number`), with no `about`, `~`, `roughly` or `approximately` | 16 Sep |
-| `checks-per-language` | A language in Scope (by `languages`) whose `checks.<lang>` commands are not all in `## Done means` (`{tests}` matches any argument) | 22 Sep |
+| `checks-per-language` | A language in Scope (by `languages`) whose `checks.<lang>` commands are not all in `## Done means` (`{tests}` matches any argument); only for modes whose briefs have a Done means, so not read-only | 22 Sep |
 | `tests-complete` | `## Tests` without a `found by:` line (an exact `none — <reason>` is allowed); or a `found by:` command matching `brief.search_commands` that, rerun in the worktree for at most 10 s, lists a file the brief does not | 23 Oct |
 | `dictated-verbatim` | A value in the front matter's `dictated:` list that is not word for word under `## Do not change` | June |
 | `forbidden-and-stop` | For worktree-write and operate: `## Forbidden` not naming commit and push, or `## Stop when` not naming `NEEDS_CONTEXT` | Standing rule |
