@@ -1107,17 +1107,45 @@ Cases, generic, on the sample repo:
 
 ### Task 16: Retire the old reviewers (manager)
 
-- [ ] **Step 1: Cases first.** Run each phase-1 agent's cases in both apps (`consortium eval <agent> --app both`).
+- [x] **Step 1: Cases first.** Run each phase-1 agent's cases in both apps (`consortium eval <agent> --app both`).
   Each standard-tier agent that passes at standard loses its deep pin in the owner's `~/.consortium/config.yaml`.
-- [ ] **Step 2: Then the old reviewers go, in one commit.**
+  Run 24 Oct, each agent at its own tier, in a fresh `CONSORTIUM_HOME` that holds no owner pins:
+  - Codex: all nine shipped cases pass. Three case briefs were fixed first (3d61714), after two correct
+    NEEDS_CONTEXT stops: `implementer/small-fix` and `investigator/hardcoded-default` named a bare `pytest` that the
+    sample repository has no environment for, and `ci-gate/known-flake` left out runner metadata the agent must copy.
+  - Claude, standard and cheap agents only (the deep ones wait for the owner, to save Claude quota): `ci-gate`,
+    `code-reviewer` and `test-designer` pass. `spec-gate` is inconclusive: its dispatch was first denied by a hook
+    bug (Task 16a below), and once that was fixed the agent found the swapped thresholds but could not read the diff,
+    because `claude plugin eval`'s sandbox blocks git on this Mac (below).
+  - Pins: `code-reviewer` moved to standard first, one agent at a time as the owner decided; `test-designer` and
+    `spec-gate` are next. `device-qa` has no runnable case and keeps its pin.
+- [x] **Step 2: Then the old reviewers go, in one commit.** Done 24 Oct (c10a9dc, merged in f8addd4).
   - Delete `spec-compliance-reviewer`, `code-quality-reviewer`, `simplifier`, `iac-change-reviewer`, `cicd-reviewer`,
     `spec-clarity-reviewer`, `domain-conventions-reviewer` and `test-coverage-reviewer`.
   - Point the old workflow's references at the new names: `workflows/build.js`, `reviewer-registry.md`,
     `codex-reviewers.md` and `experts-eval.md`. `bar-raiser` stays.
   - Update `scripts/stage*.test.sh`, and Task 10's `test_old_reviewers_are_still_there_for_the_old_workflow`, to the
     new names.
-- [ ] **Step 3:** `scripts/test.sh` passes.
-- [ ] **Manager:** commit `refactor(factory): retire the reviewers the new agents replace`.
+  - As built: the prompts ask for the old workflow's GATE and FINDINGS shapes, since the new job descriptions default
+    to the report envelope; `test-designer` runs in design mode at the plan and trace mode at the build;
+    `infra-reviewer` is dispatched once when IaC and CI/CD both match. `stage2b.test.sh` now runs both workflow
+    scripts against a stubbed agent.
+- [x] **Step 3:** `scripts/test.sh` passes: 635 tests and all nine shell suites, after the fixes below.
+- [x] **Manager:** commit `refactor(factory): retire the reviewers the new agents replace`.
+
+**What Task 16 found, and fixed on the branch:**
+- **16a, the pre-agent hook lost the brief after the repo's notes** (fa1c9a9). The playbook prepends the notes, and
+  model dispatchers add lines of their own, but the hook read front matter only from the prompt's first line. It
+  dropped `worktree:`, `dictated:`, `device:` and the brief's overrides, and checked paths against the session's
+  folder. `brief_in_prompt` now finds the brief, and the parser and the hook share one heading scanner.
+- **`node --check` passes any file that uses `export`** (Node 24), even with a syntax error in it; the stage suites
+  missed a broken `build.js`. They now compile each workflow script the way the runtime runs it (bbfdd41).
+- **16b, git failed in every read-only Codex run on macOS** (39123ab). `/usr/bin/git` is an xcrun shim, and xcrun
+  cannot write its cache in the read-only sandbox, so reviewers had no `git diff`. The launcher now links the real
+  binary (`xcrun --find`) into the run folder, right after the guard shims. Under workspace-write the shims work.
+- **Open: git in `claude plugin eval` on macOS.** The eval's sandbox blocks the same xcrun cache, and reading the
+  Command Line Tools folder, so Claude-side cases that need git can't pass on this Mac. Real Claude Code sessions
+  are not sandboxed and are unaffected.
 
 ## Publishing
 
