@@ -61,11 +61,13 @@ are for worktree-write agents.
 2. App `claude`: in Claude Code, use the Agent tool with
    `subagent_type: consortium:<agent>` and the explained `model` and
    `effort`. Prepend `consortium explain <agent> --notes` output (with the
-   same manager and brief arguments) to the checked brief. Use background
-   execution for long jobs. From a Codex manager, use Claude Code's
-   `claude -p --agent consortium:<agent>` with `--model <model>` and
-   `--effort <effort>`, the same notes and brief on stdin, and detached
-   execution for long jobs.
+   same manager and brief arguments) to the checked brief. The pre-agent
+   hook checks the brief from its front matter (or, without one, from its
+   Task heading) to the end, so keep the brief whole and after the notes.
+   Use background execution for long jobs. From a Codex manager, use
+   Claude Code's `claude -p --agent consortium:<agent>` with
+   `--model <model>` and `--effort <effort>`, the same notes and brief on
+   stdin, and detached execution for long jobs.
 3. App `codex`: `consortium run-codex <agent> <brief>` starts a detached run
    and prints its id. A write agent needs `--worktree <worktree>`,
    `--new-worktree <name> [--base <ref>]`, or the brief's `worktree:`.

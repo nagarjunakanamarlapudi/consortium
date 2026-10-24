@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from consortium import brief
 from consortium.brief import check_brief, parse_brief
 from consortium.config import load_settings
 from consortium.registry import load_registry, parse_front_matter
@@ -81,6 +82,72 @@ def test_parse_brief_normalizes_headings_and_preserves_text():
     assert brief.front == {"agent": "fixture-reader"}
     assert brief.text == text
     assert brief.sections == {"task": "Read.", "scope": "```md\n## Not a section\n```", "report": "findings.v1"}
+
+
+@pytest.mark.parametrize("text", [
+    "---\nagent: fixture-reader\n---\n## Task\nRead.\n",
+    " \t--- \nagent: [\n---\n## Task\nRead.\n",
+    "---\nagent: fixture-reader\n## Task\nRead.\n",
+    "---\n- fixture-reader\n---\n## Task\nRead.\n",
+])
+def test_brief_in_prompt_preserves_leading_front_matter(text):
+    assert brief.brief_in_prompt(text) == text
+
+
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_brief_in_prompt_keeps_front_matter_after_notes(newline):
+    text = "---\nagent: fixture-reader\nworktree: /tmp/worktree\n---\n\n## Task\nRead.\n"
+    text = text.replace("\n", newline)
+    notes = "## Notes from this repo\n- Follow the local conventions.\n\n".replace("\n", newline)
+    assert brief.brief_in_prompt(notes + text) == text
+
+
+def test_brief_in_prompt_skips_a_dispatchers_lone_rule():
+    text = "---\nworktree: /tmp/worktree\n---\n## Task\nRead.\n"
+    prompt = "Working repository: the assigned worktree.\n\n---\n" + text
+    result = brief.brief_in_prompt(prompt)
+    assert result == text
+    assert parse_brief(result).front == {"worktree": "/tmp/worktree"}
+
+
+@pytest.mark.parametrize("heading", ["## Task", "## TASK:", "## TaSk :  "])
+def test_brief_in_prompt_without_front_matter_starts_at_task(heading):
+    text = heading + "\nRead.\n## Scope\nNo files.\n"
+    assert brief.brief_in_prompt("## Notes from this repo\n- Local conventions.\n\n" + text) == text
+
+
+@pytest.mark.parametrize("text", [
+    "", "Read the notes.\n", "## Task list\nRead.\n",
+    "## Notes from this repo\n```md\n## Task\n```\n",
+])
+def test_brief_in_prompt_without_task_is_unchanged(text):
+    assert brief.brief_in_prompt(text) == text
+
+
+@pytest.mark.parametrize("fenced", [
+    "```md\n## Task\n```\n",
+    "~~~~md\n## Task\n~~~\n## Task\n~~~~\n",
+    "  ```md\n## Task\n~~~\n## Task\n  ````\n",
+])
+def test_brief_in_prompt_ignores_task_headings_inside_fences(fenced):
+    text = "---\nagent: fixture-reader\n---\n## Task\nRead.\n"
+    assert brief.brief_in_prompt("## Notes from this repo\n" + fenced + "\n" + text) == text
+
+
+@pytest.mark.parametrize("preamble", [
+    "---\nworktree: [\n---\n",
+    "---\n- worktree\n---\n",
+    "---\nplain text\n---\n",
+    "---\n{}\n---\n",
+    "---\n# Only a comment.\n---\n",
+    "---\n---\n",
+    "---\nworktree: /tmp/worktree\n---\nExtra text.\n",
+    "---\nworktree: /tmp/worktree\n",
+    "---\nworktree: /tmp/worktree\n---\n---\n# Empty nearest block.\n---\n",
+])
+def test_brief_in_prompt_requires_adjacent_nonempty_yaml_mapping(preamble):
+    text = "## Task\nRead.\n"
+    assert brief.brief_in_prompt("## Notes from this repo\n\n" + preamble + "\n" + text) == text
 
 
 def test_create_lines_are_exempt_from_paths_exist(sample_repo, writer):
