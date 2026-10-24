@@ -1086,19 +1086,21 @@ Cases, generic, on the sample repo:
 
 ### Task 15: Codex as the manager: two probes, then the playbook's Codex form (manager)
 
-- [ ] **Probe 1: can an agent that Codex starts itself be held to read-only?** In a scratch copy of the sample repo,
+- [x] **Probe 1: can an agent that Codex starts itself be held to read-only?** Done 24 Oct: no, see Probe results. In a scratch copy of the sample repo,
   run a Codex session with the plugin. Have the playbook spawn searcher natively with a brief asking it to run
   `touch probe-$RANDOM`.
   - The probe passes if the file is not created.
   - If it fails, the Codex form keeps the launcher for every read-only agent.
-- [ ] **Probe 2: do Codex hooks fire for its own agents?** Point the plugin's hooks at a logging hook in the scratch
+- [x] **Probe 2: do Codex hooks fire for its own agents?** Done 24 Oct: yes, see Probe results. Point the plugin's hooks at a logging hook in the scratch
   setup, spawn a native agent that runs one command, and read the logged payloads for `agent_type` and transcript
   fields.
   - The probe passes if PreToolUse carries enough to guard, and SubagentStop enough to write the run log.
   - Also check whether Codex reads `"hooks": "./hooks/hooks.json"`. If it doesn't, put the same hooks inline in
     `.codex-plugin/plugin.json` with `${PLUGIN_ROOT}`. Check that it doesn't run them twice.
-- [ ] **Step 3:** Update the Codex form of `agent-recipes` to the probes' results. Record both results under
-  "Probe results" at the end of this plan; the owner's design doc gets them too.
+- [x] **Step 3:** Update the Codex form of `agent-recipes` to the probes' results. Record both results under
+  "Probe results" at the end of this plan; the owner's design doc gets them too. Done 24 Oct for read-only
+  agents, which stay on the launcher. Whether write and operate agents keep `spawn_agent` is with the owner: a
+  spawned agent gets no worktree check and no run-log line, and the deny lists only once the hooks are trusted.
 - [ ] **Step 4:** One small real job with Codex as the manager: the fix recipe's investigator on a known issue in a host repo. Its
   run-log line and report appear.
 - [ ] **Manager:** commit the playbook change, `feat(factory): the playbook's Codex form, after the probes`.
@@ -1126,4 +1128,46 @@ Publishing is the owner's call at the exit gate, and is not one of this plan's t
 
 ## Probe results
 
-Filled in by Task 15.
+Run on 24 Oct 2026 with Codex CLI 0.160.1, in throwaway git copies of `evals/_fixtures/sample-repo`. Each manager
+session was `codex exec` on `gpt-6.1-sol` at low effort, with `approval_policy="never"` and
+`--dangerously-bypass-hook-trust`. It spawned two agents with `spawn_agent`: one with `agent_type` naming a role, and a
+default agent as the control. Each agent was told to run `touch <file>`, then to add a second file with `apply_patch`.
+
+**Probe 1 fails: a role cannot hold a spawned agent to read-only.**
+- `spawn_agent` takes an `agent_type`, which names a role. The role was a TOML file passed as
+  `-c agents.<name>.config_file=<file>` with `-c agents.<name>.description=...`, and held `name`, `description`,
+  `developer_instructions`, a `model` and a sandbox setting.
+- The role's `model` took effect; its sandbox did not. With `sandbox_mode = "read-only"`, and again with
+  `default_permissions = ":read-only"`, the agent created both files. This held under a manager running
+  `danger-full-access` and under one running `workspace-write`: four runs, and every write succeeded. A spawned agent
+  runs with the manager's own permissions.
+- A PreToolUse hook did hold it. A hook that returned `permissionDecision: "deny"`, the plugin guard's own output, for
+  the role's `Bash` and `apply_patch` calls stopped both, and neither file was created. Only a hook that can tell
+  which agent is calling can do this, and it is only as strong as its command rules, not a sandbox.
+- So read-only agents stay on the launcher, as this task said.
+
+**Probe 2 passes: Codex runs hooks for the agents it spawns, with enough in them to guard and to log.**
+- SubagentStart carries `agent_id`, `agent_type` (the role's name, or `default`), `model`, `session_id` (the
+  manager's), `permission_mode`, `cwd` and `transcript_path` (the agent's own rollout file).
+- PreToolUse and PostToolUse run for each of the agent's tool calls and carry the same `agent_id` and `agent_type`.
+  The shell tool is `Bash`, with `tool_input.command`. Edits are `apply_patch`, with the patch text in
+  `tool_input.command`. The manager's own agent tools appear as `collaborationspawn_agent`,
+  `collaborationwait_agent` and `collaborationinterrupt_agent`.
+- `spawn_agent`'s `message` reaches the hook encrypted, so no hook can read the brief. The brief check has to run
+  before the spawn, as `consortium brief-check`.
+- SubagentStop carries `agent_id`, `agent_type`, `model`, `last_assistant_message`, `stop_hook_active`,
+  `agent_transcript_path` (the agent's rollout) and `transcript_path` (the manager's).
+- Codex reads the manifest's `"hooks": "./hooks/hooks.json"` and sets both `PLUGIN_ROOT` and `CLAUDE_PLUGIN_ROOT` to
+  the installed copy, so the inline fallback isn't needed. Each hook runs once per event. That was checked with a
+  throwaway plugin of the same shape, installed from a local marketplace and removed afterwards.
+- What the plugin's hooks do with this today:
+  - `Bash` matches, so once the hooks are trusted the deny lists apply to a spawned agent's shell commands.
+  - `Edit|Write|MultiEdit|NotebookEdit` doesn't match `apply_patch`, and `Agent|Task` doesn't match
+    `collaborationspawn_agent`.
+  - The hooks treat an agent as Consortium's only when its type starts with `consortium:`. So a spawned Codex agent
+    gets no read-only or worktree check, and no run-log line.
+
+**Also found:**
+- `fork_turns` takes `"none"`, `"all"` or a positive whole number as a string; `0` is refused.
+- Each `codex exec` here added its throwaway repo to `projects` in `~/.codex/config.toml`, as trusted. They were
+  removed afterwards.

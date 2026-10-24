@@ -7,7 +7,7 @@ description: >-
   at the gates. Skip questions, debates and small edits; do those yourself.
 ---
 
-Read-only agents go through `consortium run-codex`, not `spawn_agent`, until a probe shows Codex can hold a spawned agent to read-only.
+Read-only agents go through `consortium run-codex`, not `spawn_agent`: the 24 Oct probe found that a spawned agent keeps this session's permissions, whatever its role sets.
 
 # Agent recipes
 

@@ -73,8 +73,8 @@ are for worktree-write agents.
    `consortium run-codex --log <id> --tail <n>`; use `--wait` when waiting
    synchronously. The launcher uses `tmux -L consortium -f /dev/null`.
    In a Codex manager, the skill's native `spawn_agent` instructions apply
-   to write and operate modes; all read-only agents stay on the launcher
-   until the read-only probe passes.
+   to write and operate modes. Read-only agents stay on the launcher:
+   a spawned agent keeps the manager's permissions, whatever its role sets.
 4. On a quota error, rerun once in the other app. Preserve task, scope,
    worktree and evidence, change the retry brief's `app`, and explain it
    again so model and effort resolve for that app. If the retry fails,
