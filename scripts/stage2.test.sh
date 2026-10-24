@@ -6,7 +6,7 @@ fails=0
 ok(){ printf 'ok   - %s\n' "$1"; }
 fail(){ printf 'FAIL - %s\n' "$1"; fails=$((fails+1)); }
 
-AGENTS="spec-clarity-reviewer domain-conventions-reviewer spec-compliance-reviewer code-quality-reviewer"
+AGENTS="test-designer spec-gate code-reviewer"
 
 # 1. Each reviewer agent exists with name + description frontmatter
 for a in $AGENTS; do

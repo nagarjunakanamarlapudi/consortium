@@ -52,9 +52,9 @@ def test_explain_global_settings_with_sources(run_cli, tmp_path):
 
 
 def test_explain_old_workflow_exits_one(run_cli):
-    result = run_cli("explain", "spec-compliance-reviewer")
+    result = run_cli("explain", "bar-raiser")
     assert result.returncode == 1
-    assert "spec-compliance-reviewer has no consortium: block; it belongs to the old workflow" in result.stdout + result.stderr
+    assert "bar-raiser has no consortium: block; it belongs to the old workflow" in result.stdout + result.stderr
     assert "Traceback" not in result.stderr
 
 

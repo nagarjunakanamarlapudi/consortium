@@ -23,8 +23,8 @@ ROWS = {
     "security-reviewer": ("check", "read-only", "all", ["read", "search"], "deep", 30, "findings.v1", []),
     "infra-reviewer": ("check", "read-only", "all", ["read", "search"], "deep", 30, "findings.v1", []),
 }
-OLD = [
-    "bar-raiser", "cicd-reviewer", "code-quality-reviewer",
+RETIRED = [
+    "cicd-reviewer", "code-quality-reviewer",
     "domain-conventions-reviewer", "iac-change-reviewer", "simplifier",
     "spec-clarity-reviewer", "spec-compliance-reviewer", "test-coverage-reviewer",
 ]
@@ -96,12 +96,13 @@ def test_descriptions_fit_routing(registry, name):
     assert description.split(".", 1)[0].removeprefix("Use when ").strip()
 
 
-def test_old_reviewers_are_still_there_for_the_old_workflow(registry):
-    for name in OLD:
-        job = registry[name]
-        assert job.path.is_file()
-        assert job.front["name"] == name
-        assert not job.ready
+def test_only_bar_raiser_uses_old_format_and_replaced_reviewers_are_gone(registry):
+    assert {name for name, job in registry.items() if not job.ready} == {"bar-raiser"}
+    assert registry["bar-raiser"].path.is_file()
+    assert registry["bar-raiser"].front["name"] == "bar-raiser"
+    for name in RETIRED:
+        assert name not in registry
+        assert not (paths.package_root() / "job-descriptions" / f"{name}.md").exists()
 
 
 @pytest.mark.parametrize("name", NEW)

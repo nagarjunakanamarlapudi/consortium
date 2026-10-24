@@ -124,7 +124,7 @@ def test_pre_agent_allows_a_good_brief(repo):
     assert handle("pre-agent", data) is None
 
 
-@pytest.mark.parametrize("agent", ["Explore", "other:fixture-reader", "consortium:spec-compliance-reviewer", "consortium:missing"])
+@pytest.mark.parametrize("agent", ["Explore", "other:fixture-reader", "consortium:bar-raiser", "consortium:missing"])
 def test_pre_agent_ignores_old_format_and_other_agents(repo, agent):
     assert handle("pre-agent", payload("pre-agent", repo, agent)) is None
 
@@ -286,7 +286,7 @@ def test_subagent_stop_without_start_still_records_once(repo, tmp_path):
     assert "-fixture-reader-" in record["id"]
 
 
-@pytest.mark.parametrize("agent", ["Explore", "consortium:spec-compliance-reviewer"])
+@pytest.mark.parametrize("agent", ["Explore", "consortium:bar-raiser"])
 def test_subagent_stop_ignores_other_and_old_agents(repo, agent):
     assert handle("subagent-stop", payload("subagent-stop", repo, agent)) is None
     assert runlog.read_records() == []

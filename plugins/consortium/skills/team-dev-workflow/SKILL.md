@@ -75,18 +75,17 @@ the task normally.
 
 1. Draft a grounded, concrete plan.
 2. Read [`references/codex-reviewers.md`](references/codex-reviewers.md), then
-   dispatch native Codex subagents with its `spec-clarity` and
-   `domain-conventions` prompts. They must remain read-only. Apply that file's
+   dispatch one native Codex subagent with its `test-designer` prompt in
+   design mode. It must remain read-only. Apply that file's
    Codex-native project-reviewer discovery policy too.
 3. Resolve blocking and important plan findings. Present the vetted plan and
    wait for the user's explicit approval before editing.
 4. Implement directly; do not delegate implementation to a write-capable
    subagent.
-5. Dispatch the `spec-compliance` prompt as the first read-only diff gate. Once
-   compliant, dispatch the `code-quality`, `domain-conventions`, and
-   `simplifier` prompts. Select conditional and project-local reviewers using
-   the Codex-native policy in `references/codex-reviewers.md`, and run
-   independent reviews in parallel.
+5. Dispatch the `spec-gate` prompt as the first read-only diff gate. Once
+   COMPLIANT, dispatch one `code-reviewer` prompt per round. Select conditional
+   and project-local reviewers using the Codex-native policy in
+   `references/codex-reviewers.md`, and run independent reviews in parallel.
 6. Fix blocking and important findings, rerun affected tests, and ask the
    relevant reviewers to re-check the revised diff. Synthesize results and
    ship as the repository workflow requires.
