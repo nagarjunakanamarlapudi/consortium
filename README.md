@@ -105,9 +105,16 @@ See `skills/app-interactive-mocks/README.md`.
 
 ## Requirements
 
-Agent work needs **uv, Python 3.11+ and tmux**, and the `consortium` command
-on PATH: link `<plugin>/bin/consortium` into a folder on PATH, such as
-`~/.local/bin`. Both skill forms call it by name.
+Agent work needs **uv, Python 3.11+ and tmux**. The `consortium` command comes
+with the plugin; there's nothing else to install:
+
+- Claude Code puts it on PATH in its own sessions.
+- For Codex and your terminal, each session start writes a small `consortium`
+  command into `$XDG_BIN_HOME`, or `~/.local/bin` where uv installs itself,
+  when that folder exists. It runs the installed plugin's copy, and inside a
+  Claude Code session that session's own copy. The plugin never replaces a
+  file there that it didn't write, so a `consortium` of your own stays put.
+  That folder needs to be on your PATH.
 
 The old workflow's core tiers work on any recent Claude Code. The dynamic-workflow engine used by the heavier tiers requires **Claude Code v2.1.154+**; where it's unavailable the plugin falls back to plain subagent dispatch.
 

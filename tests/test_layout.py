@@ -45,6 +45,16 @@ def test_hooks_links_into_the_package():
     assert hooks.resolve() == ROOT / "plugins/consortium/hooks"
     assert (hooks / "hooks.json").is_file()
     assert (hooks / "guard.py").is_file()
+    assert (hooks / "put_on_path.py").is_file()
+
+
+def test_session_start_puts_the_command_on_path_for_every_source():
+    hooks = json.loads((ROOT / "plugins/consortium/hooks/hooks.json").read_text())["hooks"]
+    assert hooks["SessionStart"] == [{"hooks": [{
+        "type": "command",
+        "command": 'python3 "${CLAUDE_PLUGIN_ROOT}/hooks/put_on_path.py"',
+        "timeout": 10,
+    }]}]
 
 
 def test_evals_links_into_the_package():

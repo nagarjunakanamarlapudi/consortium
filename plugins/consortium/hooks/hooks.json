@@ -1,5 +1,6 @@
 {
   "hooks": {
+    "SessionStart": [{"hooks": [{"type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/put_on_path.py\"", "timeout": 10}]}],
     "PreToolUse": [
       {"matcher": "Agent|Task", "hooks": [{"type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/consortium\" hook pre-agent", "timeout": 30}]},
       {"matcher": "Bash", "hooks": [{"type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.py\" pre-bash", "timeout": 15}]},
