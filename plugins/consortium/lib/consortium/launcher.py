@@ -186,7 +186,7 @@ def _session_env_args(server: dict | None, env: dict) -> list[str]:
 
 
 def _developer_tools(run_id, shims, path):
-    """Link the binaries behind macOS's xcrun shims for the guarded commands; the run's bin folder, or None."""
+    """Wrap the binaries behind macOS's xcrun shims for the guarded commands; the run's bin folder, or None."""
     if sys.platform != "darwin":
         return None
     lookup = os.pathsep.join(entry for entry in path.split(os.pathsep)
@@ -204,13 +204,18 @@ def _developer_tools(run_id, shims, path):
             if result.returncode or not target.is_absolute() or not target.is_file() or not os.access(target, os.X_OK):
                 continue
             folder.mkdir(exist_ok=True)
-            link = folder / shim.name
-            if link.is_symlink():
-                link.unlink()
-            link.symlink_to(target)
+            script = folder / shim.name
+            temporary = script.with_suffix(".tmp")
+            try:
+                temporary.write_text(f'#!/bin/sh\nexec {shlex.quote(str(target))} "$@"\n')
+                temporary.chmod(0o755)
+                os.replace(temporary, script)
+            finally:
+                temporary.unlink(missing_ok=True)
         except (OSError, ValueError, subprocess.TimeoutExpired):
             continue
-    return folder if folder.is_dir() and any(link.is_symlink() for link in folder.iterdir()) else None
+    return folder if folder.is_dir() and any(tool.is_file() and not tool.is_symlink() and os.access(tool, os.X_OK)
+                                            for tool in folder.iterdir()) else None
 
 
 def _environment(meta, task, settings):
