@@ -175,6 +175,19 @@ def test_same_app_and_copy_does_not_rewrite(tmp_path, hook_env, app):
     assert target.read_bytes() == contents
 
 
+@pytest.mark.parametrize("app", ["claude", "codex"])
+def test_script_from_an_older_version_is_rewritten_for_the_same_copy(tmp_path, hook_env, app):
+    script, _ = installed_copy(tmp_path / "installed", "recorded")
+    assert run_hook(script, hook_env, app).stderr == ""
+    target = Path(hook_env["XDG_BIN_HOME"]) / "consortium"
+    current = target.read_text()
+    target.write_text(current.replace("exit 127", "exit 1"))
+    before = target.stat().st_ino
+    assert run_hook(script, hook_env, app).stderr == ""
+    assert target.stat().st_ino != before
+    assert target.read_text() == current
+
+
 @pytest.mark.parametrize("xdg", [None, ""])
 def test_uses_local_bin_when_xdg_is_unset_or_empty(tmp_path, hook_env, xdg):
     script, _ = installed_copy(tmp_path / "installed", "recorded")

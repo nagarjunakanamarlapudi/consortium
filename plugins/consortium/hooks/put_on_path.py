@@ -20,20 +20,24 @@ def should_write(target: Path, app: str, command: Path) -> bool:
         return False
     with target.open(encoding="utf-8", errors="surrogateescape") as stream:
         header = [stream.readline().rstrip("\n") for _ in range(4)]
-    if header[:2] != ["#!/bin/sh", MARKER]:
+        if header[:2] != ["#!/bin/sh", MARKER]:
+            return False
+        stream.seek(0)
+        current = stream.read()
+    # Compare the whole text, not the recorded copy: Codex updates its copy in place, so after an update that
+    # changes this script the copy's path alone would match.
+    if current == command_text(app, command):
         return False
     recorded_app = header[2][7:] if header[2].startswith("# app: ") else ""
     recorded_copy = header[3][8:] if header[3].startswith("# copy: ") else ""
-    if recorded_app == app and recorded_copy == str(command):
-        return False
     if app == "claude" and recorded_app == "codex":
         if Path(recorded_copy).is_file() and os.access(recorded_copy, os.X_OK):
             return False
     return True
 
 
-def write_command(target: Path, app: str, command: Path) -> None:
-    text = f"""#!/bin/sh
+def command_text(app: str, command: Path) -> str:
+    return f"""#!/bin/sh
 {MARKER}
 # app: {app}
 # copy: {command}
@@ -58,6 +62,10 @@ fi
 printf '%s\\n' "consortium: $recorded_copy is missing; start a Claude Code or Codex session to refresh the command." >&2
 exit 127
 """
+
+
+def write_command(target: Path, app: str, command: Path) -> None:
+    text = command_text(app, command)
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(
