@@ -115,6 +115,9 @@ with the plugin; there's nothing else to install:
   Claude Code session that session's own copy. The plugin never replaces a
   file there that it didn't write, so a `consortium` of your own stays put.
   That folder needs to be on your PATH.
+- Codex runs a plugin's hooks only once you trust them: open `/hooks` in
+  Codex and trust Consortium's, and do it again when an update changes one.
+  Until then the Codex playbook runs the plugin's own copy by its full path.
 
 The old workflow's core tiers work on any recent Claude Code. The dynamic-workflow engine used by the heavier tiers requires **Claude Code v2.1.154+**; where it's unavailable the plugin falls back to plain subagent dispatch.
 
