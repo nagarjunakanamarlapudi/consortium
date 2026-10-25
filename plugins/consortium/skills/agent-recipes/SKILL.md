@@ -21,6 +21,9 @@ bash "<plugin>/scripts/effort.sh" --resolve
 If it prints anything other than `off`, invoke `team-dev-workflow` and stop
 this playbook. If resolution fails, report the error before dispatching.
 
+Every `consortium` command below runs by name. If your shell can't find it,
+run `<plugin>/bin/consortium` with the same arguments.
+
 Read [the manager's playbook](references/manager.md). Route the request by
 its table; handle questions and small edits yourself. For a bug, follow
 [the fix recipe](references/fix-recipe.md).

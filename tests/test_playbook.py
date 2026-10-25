@@ -67,6 +67,8 @@ def test_codex_form_keeps_read_only_agents_on_the_launcher():
     assert "PushNotification" not in text
     assert 'bash "<plugin>/scripts/effort.sh" --resolve' in body
     assert "the part of this SKILL.md's path before\n`/skills/agent-recipes/SKILL.md`" in body
+    assert "Every `consortium` command below runs by name." in body
+    assert "run `<plugin>/bin/consortium` with the same arguments." in body
 
 
 def test_codex_form_commands_never_rely_on_plugin_root():
