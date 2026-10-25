@@ -140,3 +140,12 @@ def test_broken_command_module_fails_loudly(tmp_path, monkeypatch, source, error
     importlib.invalidate_caches()
     with pytest.raises(error):
         main(["version"])
+
+
+@pytest.mark.parametrize("args", [("implementer",), ("--prompt",), ("--notes",), ("implementer", "--prompt"), ("implementer", "--notes")])
+def test_explain_all_refuses_other_text_modes(run_cli, args):
+    result = run_cli("explain", "--all", *args)
+    assert result.returncode == 1
+    assert "--all cannot be used with an agent, --prompt or --notes" in result.stderr
+    assert result.stdout == ""
+    assert "Traceback" not in result.stderr
