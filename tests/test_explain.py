@@ -15,7 +15,7 @@ def explain_repo(tmp_path):
 
 def test_explain_text_names_each_source(run_cli, tmp_path):
     repo = explain_repo(tmp_path)
-    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"app": "codex", "agents": {"repo-reader": {"tier": "deep"}}})
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"app": ["codex"], "agents": {"repo-reader": {"tier": "deep"}}})
     result = run_cli("explain", "repo-reader", "--repo", str(repo))
     assert result.returncode == 0, result.stderr
     assert "tier: deep  <- you (" in result.stdout
@@ -23,6 +23,8 @@ def test_explain_text_names_each_source(run_cli, tmp_path):
     assert "model: gpt-6.1-sol" in result.stdout
     assert "effort: xhigh" in result.stdout
     assert "version: 2  <- repo (" in result.stdout
+    assert "allowed_apps: [codex]  <- you (" in result.stdout
+    assert "config.yaml: app)" in result.stdout
     assert result.stderr == ""
 
 
@@ -32,22 +34,24 @@ def test_explain_json_has_every_agentrun_field(run_cli, tmp_path):
     assert result.returncode == 0, result.stderr
     data = json.loads(result.stdout)
     assert set(data) == {
-        "name", "version", "app", "tier", "model", "effort", "mode", "write_scope", "sandbox", "capabilities",
+        "name", "version", "app", "allowed_apps", "tier", "model", "effort", "mode", "write_scope", "sandbox", "capabilities",
         "locks", "timeout_minutes", "report", "alt_reports", "notes", "sources",
     }
     assert (data["app"], data["model"]) == ("codex", "gpt-6.1-sol")
+    assert data["allowed_apps"] == ["codex", "claude"]
+    assert data["sources"]["allowed_apps"] == data["sources"]["app"]
 
 
 def test_explain_global_settings_with_sources(run_cli, tmp_path):
-    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"app": "codex"})
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"app": ["codex"]})
     result = run_cli("explain", cwd=tmp_path)
     assert result.returncode == 0, result.stderr
-    assert "app: codex  <- you (" in result.stdout
+    assert "app: [codex]  <- you (" in result.stdout
     assert "thresholds.reviewers_min_lines: 200  <- default (" in result.stdout
     result = run_cli("explain", "--json", cwd=tmp_path)
     assert result.returncode == 0, result.stderr
     data = json.loads(result.stdout)
-    assert data["values"]["app"] == "codex"
+    assert data["values"]["app"] == ["codex"]
     assert data["sources"]["app"] == "user"
 
 
@@ -79,7 +83,7 @@ def test_explain_reads_a_full_brief(run_cli, tmp_path):
     repo = explain_repo(tmp_path)
     brief = repo / "brief.md"
     brief.write_text(
-        f"---\nagent: repo-reader\nworktree: {repo}\ndictated: [v1]\napp: codex\ntier: deep\n---\n\n## Task\n\nRead.\n"
+        f"---\nagent: repo-reader\nworktree: {repo}\ndictated: [v1]\napp: [codex]\ntier: deep\n---\n\n## Task\n\nRead.\n"
     )
     result = run_cli("explain", "repo-reader", "--brief", str(brief), "--json", cwd=repo)
     assert result.returncode == 0, result.stderr
@@ -106,11 +110,13 @@ def test_repo_agent_sources_point_to_the_job_until_patched(run_cli, tmp_path):
     assert result.returncode == 0, result.stderr
     assert f"tier: standard  <- repo ({repo}/.consortium/agents/repo-reader.md: consortium.tier)" in result.stdout
     assert f"app: codex  <- repo ({repo}/.consortium/agents/repo-reader.md: consortium.app)" in result.stdout
-    write_config(repo / ".consortium", {"app": "claude", "agents": {"repo-reader": {"tier": "deep"}}})
+    assert f"allowed_apps: [codex, claude]  <- repo ({repo}/.consortium/agents/repo-reader.md: consortium.app)" in result.stdout
+    write_config(repo / ".consortium", {"app": ["claude"], "agents": {"repo-reader": {"tier": "deep"}}})
     result = run_cli("explain", "repo-reader", cwd=repo)
     assert result.returncode == 0, result.stderr
     assert f"tier: deep  <- repo ({repo}/.consortium/config.yaml: agents.repo-reader.tier)" in result.stdout
     assert f"app: claude  <- repo ({repo}/.consortium/config.yaml: app)" in result.stdout
+    assert f"allowed_apps: [claude]  <- repo ({repo}/.consortium/config.yaml: app)" in result.stdout
 
 
 def test_explain_append_names_both_repo_job_and_config(run_cli, tmp_path):

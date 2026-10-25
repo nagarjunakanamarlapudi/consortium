@@ -60,9 +60,9 @@ def gate_case(tmp_path, monkeypatch):
     return repo
 
 
-def configure(repo, command="printf 'green\\n'", *, before=(), after=(), names=(), floor=0, flakes=None, app="codex"):
+def configure(repo, command="printf 'green\\n'", *, before=(), after=(), names=(), floor=0, flakes=None, app=("codex",)):
     (repo / ".consortium/config.yaml").write_text(yaml.safe_dump({
-        "app": app, "gate": {"command": command, "before": list(before), "after": list(after),
+        "app": list(app), "gate": {"command": command, "before": list(before), "after": list(after),
                               "locks": list(names), "flakes_file": flakes},
         "locks": {"disk_floor_gb": floor, "wait_seconds": 0.2},
         "agents": {"ci-gate": {"notes": ["Classify only the supplied artifacts."]}},
@@ -352,7 +352,7 @@ def test_auto_command_uses_the_worktree_and_default_repo_is_the_current_checkout
 
 def test_claude_argv_and_structured_output(run_cli, gate_case):
     from consortium.gate import claude_argv
-    configure(gate_case, "exit 4", app="claude")
+    configure(gate_case, "exit 4", app=["claude"])
     resolved = resolve_agent("ci-gate", load_settings(gate_case), load_registry(gate_case), manager_app="codex")
     schema = load_schema("gate.v1")
     argv = claude_argv(resolved, schema)
@@ -385,7 +385,7 @@ def test_claude_argv_and_structured_output(run_cli, gate_case):
     ("malformed", 0),
 ])
 def test_invalid_or_failed_claude_results_are_not_classifications(run_cli, gate_case, monkeypatch, result, exit_code):
-    configure(gate_case, "exit 1", app="claude")
+    configure(gate_case, "exit 1", app=["claude"])
     monkeypatch.setenv("FAKE_CLAUDE_RESULT", result if isinstance(result, str) else json.dumps(result))
     monkeypatch.setenv("FAKE_CLAUDE_EXIT", str(exit_code))
     invoked = invoke(run_cli, gate_case)

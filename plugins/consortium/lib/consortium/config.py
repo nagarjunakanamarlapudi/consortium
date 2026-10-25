@@ -14,6 +14,31 @@ class ConfigError(Exception):
     """A configuration or job description cannot be used."""
 
 
+APPS = {"claude", "codex"}
+
+
+def validate_apps(value) -> None:
+    if (not isinstance(value, list) or not value or
+            not all(isinstance(item, str) and item in APPS for item in value) or len(set(value)) != len(value)):
+        raise ConfigError(f"apps: expected a non-empty list of distinct supported apps {sorted(APPS)}, got {value!r}")
+
+
+def allowed_apps(value, apps, key="app") -> tuple:
+    if value == "all":
+        return tuple(apps)
+    if (isinstance(value, list) and value and
+            all(isinstance(item, str) and item in apps for item in value) and len(set(value)) == len(value)):
+        return tuple(value)
+    names = sorted(apps) if isinstance(apps, set) else list(apps)
+    example = "codex" if "codex" in names else names[0]
+    message = f"{key}: expected 'all' or a non-empty list of distinct names from apps {names}, e.g. [{example}]; got {value!r}"
+    if value == "either":
+        message += "; 'either' is now 'all'"
+    elif isinstance(value, str) and value in APPS:
+        message += f"; write {value!r} as a one-item list: [{value}]"
+    raise ConfigError(message)
+
+
 # A brief's front matter also names its agent, worktree, dictated values and device, and carries the per-agent fields
 # that resolve_agent takes as its brief argument. Of its keys, only these are global settings.
 BRIEF_SETTINGS = ("app",)
@@ -54,8 +79,9 @@ def _read_yaml(path: Path) -> dict:
 def _same_kind(previous, incoming) -> bool:
     if type(previous) is type(incoming) or {type(previous), type(incoming)} <= {int, float}:
         return True
-    # "auto" means "work it out": a command or a list of them replaces it, and a later layer may put it back.
-    return "auto" in (previous, incoming) and all(isinstance(value, (str, list)) for value in (previous, incoming))
+    # Symbolic defaults may be replaced by lists, and a later layer may put them back.
+    return any(word in (previous, incoming) for word in ("auto", "all")) and all(
+        isinstance(value, (str, list)) for value in (previous, incoming))
 
 
 def _merge(values: dict, patch: dict, sources: dict, source: str, prefix: str = "") -> None:
@@ -65,6 +91,12 @@ def _merge(values: dict, patch: dict, sources: dict, source: str, prefix: str = 
         dotted = f"{prefix}.{key}" if prefix else key
         present = key in values
         previous = values.get(key)
+        app_setting = key == "app" and (not prefix or prefix.startswith("agents."))
+        if app_setting and not (isinstance(incoming, list) and any(
+                isinstance(item, str) and item.startswith("+") for item in incoming)):
+            allowed_apps(incoming, APPS, dotted)
+        if key == "apps" and not prefix and not isinstance(incoming, list):
+            validate_apps(incoming)
         if present and previous is not None and not _same_kind(previous, incoming):
             raise ConfigError(f"{dotted}: expected {type(previous).__name__}")
         if isinstance(incoming, dict):
@@ -84,6 +116,8 @@ def _merge(values: dict, patch: dict, sources: dict, source: str, prefix: str = 
                 if previous is not None and not isinstance(previous, list):
                     raise ConfigError(f"{dotted}: '+' items need a list to add to, not {previous!r}")
                 values[key] = deepcopy(previous or []) + [item[1:] for item in incoming]
+                if app_setting:
+                    allowed_apps(values[key], APPS, dotted)
                 earlier = sources.get(dotted)
                 sources[dotted] = f"{earlier}+{source}" if earlier else source
                 continue
@@ -107,6 +141,13 @@ def load_settings(repo: Path | None, brief: dict | None = None) -> Settings:
     values, sources = {}, {}
     for source, patch in layers:
         _merge(values, patch, sources, source)
+        validate_apps(values.get("apps"))
+        allowed_apps(values.get("app"), values["apps"])
+        agents = values.get("agents", {})
+        if isinstance(agents, dict):
+            for name, agent in agents.items():
+                if isinstance(agent, dict) and "app" in agent:
+                    allowed_apps(agent["app"], values["apps"], f"agents.{name}.app")
     settings = Settings(values, sources)
     object.__setattr__(settings, "_layers", tuple(layers))
     return settings

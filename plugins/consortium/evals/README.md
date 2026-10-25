@@ -22,13 +22,13 @@ From the plugin checkout, with the command on PATH:
 
 ```bash
 export CONSORTIUM_HOME="$(mktemp -d)"
-consortium eval spec-gate --app both
+consortium eval spec-gate --app all
 consortium eval searcher --case all-callers --app codex --runs 1
 ```
 
-The default app comes from agent resolution for the current manager; `either` uses Codex when no manager is
-identified. `both` runs Codex first. `--runs` overrides the case's run count. Output is one PASS/FAIL line per
-case and app, including failing grader names and reasons. Any failing case makes the command exit 1.
+The default app comes from agent resolution for the current manager. With `app: all` and no manager, the first
+of `apps` runs; `--app all` runs each app in `apps` order. `--runs` overrides the case's run count. Output is one
+PASS/FAIL line per case and app, including failing grader names and reasons. Any failing case makes the command exit 1.
 
 The native tool's format was checked with `claude plugin eval --help` and `claude plugin eval init --bare probe`
 in a scratch plugin directory. The bare initializer writes `prompt.md` with execution front matter and

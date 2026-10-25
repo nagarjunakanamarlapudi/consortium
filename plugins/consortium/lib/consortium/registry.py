@@ -8,14 +8,13 @@ from typing import Literal
 import yaml
 
 from consortium import paths
-from consortium.config import ConfigError, Settings, _merge
+from consortium.config import APPS, ConfigError, Settings, _merge, allowed_apps, validate_apps
 
 REWRITE_ERROR = "a repo can't rewrite a generic agent; make a repo-only agent under its own name"
 STATIONS = {"investigate", "design", "build", "check", "verify", "ship", "record", "operate"}
 MODES = {"read-only", "worktree-write", "operate"}
 CAPABILITIES = {"read", "search", "shell", "edit", "toolchain", "device", "dev-stack", "cloud", "web"}
 TIERS = {"deep", "standard", "cheap"}
-APPS = {"claude", "codex", "either"}
 LIST_FIELDS = {"capabilities", "locks", "alt_reports", "inputs", "done_means", "stop_when", "forbidden", "knowledge", "triggers"}
 META_FIELDS = LIST_FIELDS | {"version", "station", "mode", "write_scope", "tier", "app", "timeout_minutes", "report"}
 PATCH_FIELDS = {"app", "tier", "model", "effort", "timeout_minutes", "locks", "notes", "done_means", "forbidden", "triggers", "knowledge"}
@@ -46,17 +45,18 @@ def _validate_meta(meta: dict) -> dict:
     if unknown:
         raise ConfigError(f"unknown consortium key: {', '.join(sorted(map(str, unknown)))}")
     meta = deepcopy(meta)
-    meta.setdefault("app", "either")
+    meta.setdefault("app", "all")
     meta.setdefault("write_scope", "all")
     meta.setdefault("timeout_minutes", 60)
     if type(meta.get("version")) is not int or meta["version"] < 1:
         raise ConfigError("consortium.version: expected an integer >= 1")
     for key, choices in (
         ("station", STATIONS), ("mode", MODES), ("write_scope", {"all", "tests"}),
-        ("tier", TIERS), ("app", APPS),
+        ("tier", TIERS),
     ):
         if not isinstance(meta.get(key), str) or meta[key] not in choices:
             raise ConfigError(f"consortium.{key}: invalid value")
+    allowed_apps(meta["app"], APPS, "consortium.app")
     if type(meta["timeout_minutes"]) is not int or meta["timeout_minutes"] <= 0:
         raise ConfigError("consortium.timeout_minutes: expected a positive integer")
     if not isinstance(meta.get("report"), str) or not meta["report"]:
@@ -110,6 +110,7 @@ class AgentRun:
     name: str
     version: int
     app: str
+    allowed_apps: tuple
     tier: str
     model: str | None
     effort: str | None
@@ -143,6 +144,8 @@ def resolve_agent(name, settings, registry, brief: dict | None = None, manager_a
     if not job.ready:
         raise ConfigError(f"{name} has no consortium: block; it belongs to the old workflow")
     values = deepcopy(job.meta)
+    apps = settings.get("apps")
+    validate_apps(apps)
     values["notes"] = []
     sources = {key: job.origin for key in values}
     sources["name"] = job.origin
@@ -158,8 +161,7 @@ def resolve_agent(name, settings, registry, brief: dict | None = None, manager_a
             brief_layer.update(layer)
             continue
         if "app" in layer:
-            values["app"] = layer["app"]
-            sources["app"] = source
+            _merge(values, {"app": layer["app"]}, sources, source)
         agents = layer.get("agents", {})
         if not isinstance(agents, dict):
             raise ConfigError("agents: expected a mapping")
@@ -175,13 +177,13 @@ def resolve_agent(name, settings, registry, brief: dict | None = None, manager_a
         if key == "report" and value != job.meta["report"] and value not in job.meta["alt_reports"]:
             raise ConfigError(f"{name}.report: not listed in alt_reports")
         _merge(values, {key: value}, sources, "brief")
-    for key, choices in (("app", APPS), ("tier", TIERS)):
-        if not isinstance(values[key], str) or values[key] not in choices:
-            raise ConfigError(f"{name}.{key}: invalid value")
-    if manager_app is not None and manager_app not in {"claude", "codex"}:
-        raise ConfigError("manager_app: expected claude or codex")
-    if values["app"] == "either" and manager_app is not None:
-        values["app"] = manager_app
+    if not isinstance(values["tier"], str) or values["tier"] not in TIERS:
+        raise ConfigError(f"{name}.tier: invalid value")
+    if manager_app is not None and (not isinstance(manager_app, str) or manager_app not in APPS):
+        raise ConfigError(f"manager_app: expected one of {', '.join(sorted(APPS))}")
+    values["allowed_apps"] = allowed_apps(values["app"], apps, f"{name}.app")
+    sources["allowed_apps"] = sources["app"]
+    values["app"] = manager_app if manager_app in values["allowed_apps"] else values["allowed_apps"][0]
     if type(values["timeout_minutes"]) is not int or values["timeout_minutes"] <= 0:
         raise ConfigError(f"{name}.timeout_minutes: expected a positive integer")
     for key in ("locks", "notes"):
@@ -197,7 +199,7 @@ def resolve_agent(name, settings, registry, brief: dict | None = None, manager_a
     sandbox = "read-only" if values["mode"] == "read-only" and set(values["capabilities"]) <= {"read", "search"} else "danger-full-access"
     sources["sandbox"] = sources["mode"]
     fields = {key: values[key] for key in (
-        "version", "app", "tier", "model", "effort", "mode", "write_scope", "timeout_minutes", "report",
+        "version", "app", "allowed_apps", "tier", "model", "effort", "mode", "write_scope", "timeout_minutes", "report",
     )}
     for key in ("capabilities", "locks", "alt_reports", "notes"):
         fields[key] = tuple(values[key])

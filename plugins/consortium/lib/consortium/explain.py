@@ -10,7 +10,7 @@ import yaml
 
 from consortium import paths
 from consortium.cli import EXIT_FAIL, EXIT_OK
-from consortium.config import ConfigError, load_settings
+from consortium.config import APPS, ConfigError, load_settings
 from consortium.registry import _notes_block, compose_prompt, load_registry, parse_front_matter, resolve_agent
 
 
@@ -23,7 +23,7 @@ def register(sub: argparse._SubParsersAction) -> None:
     output.add_argument("--notes", action="store_true")
     parser.add_argument("--brief", type=Path)
     parser.add_argument("--repo", type=Path)
-    parser.add_argument("--manager", choices=("claude", "codex"))
+    parser.add_argument("--manager", choices=sorted(APPS))
     parser.set_defaults(func=_explain)
 
 
@@ -43,6 +43,8 @@ def _value_text(value):
 
 
 def _source_text(source, dotted, repo, settings, job=None, run=None):
+    if dotted == "allowed_apps":
+        dotted = "app"
     descriptions = []
     layers = source.split("+")
     for index, layer in enumerate(layers):

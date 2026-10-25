@@ -241,7 +241,7 @@ def test_claude_argv_and_native_json_parsing(run_cli, tmp_path, monkeypatch, mod
     assert "--allow-tools" in argv and "Agent" in argv and "Bash" in argv
 
 
-def test_default_app_respects_manager_and_both_runs_codex_first(evals, monkeypatch, tmp_path):
+def test_default_app_respects_manager_and_all_runs_codex_first(evals, monkeypatch, tmp_path):
     calls = []
     monkeypatch.setattr(evals, "run_case_codex", lambda case: calls.append("codex") or evals.CaseResult(case.name, "codex", []))
     monkeypatch.setattr(evals, "run_cases_claude", lambda agent, cases, runs: calls.append("claude") or 0)
@@ -251,8 +251,34 @@ def test_default_app_respects_manager_and_both_runs_codex_first(evals, monkeypat
     assert main(["eval", "searcher"]) == 0
     assert calls == ["codex"]
     calls.clear()
-    assert main(["eval", "searcher", "--app", "both"]) == 0
+    assert main(["eval", "searcher", "--app", "all"]) == 0
     assert calls == ["codex", "claude"]
+    calls.clear()
+    monkeypatch.setenv("CLAUDECODE", "1")
+    assert main(["eval", "searcher"]) == 0
+    assert calls == ["claude"]
+
+
+@pytest.mark.parametrize("apps", [["codex"], ["claude", "codex"]])
+def test_eval_all_uses_configured_apps_in_order(evals, monkeypatch, apps):
+    from consortium.cli import main
+    from test_config import write_config
+    calls = []
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"apps": apps})
+    monkeypatch.setattr(evals, "run_case_codex", lambda case: calls.append("codex") or evals.CaseResult(case.name, "codex", []))
+    monkeypatch.setattr(evals, "run_cases_claude", lambda agent, cases, runs: calls.append("claude") or 0)
+    assert main(["eval", "searcher", "--app", "all"]) == 0
+    assert calls == apps
+
+
+def test_eval_rejects_both(evals, monkeypatch, capsys):
+    from consortium.cli import main
+    monkeypatch.setattr(evals, "run_case_codex", lambda case: pytest.fail("Codex must not start"))
+    monkeypatch.setattr(evals, "run_cases_claude", lambda *args: pytest.fail("Claude must not start"))
+    with pytest.raises(SystemExit) as error:
+        main(["eval", "searcher", "--app", "both"])
+    assert error.value.code == 2
+    assert "invalid choice: 'both'" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("inside_plugin", [False, True])

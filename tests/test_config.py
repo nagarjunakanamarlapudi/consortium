@@ -17,19 +17,65 @@ def write_config(folder, values):
 
 def test_later_layer_wins(tmp_path):
     repo = make_repo(tmp_path / "repo")
-    assert load_settings(repo).get("app") == "either"
+    assert load_settings(repo).get("app") == "all"
     assert load_settings(repo).source("app") == "default"
-    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"app": "codex"})
-    assert load_settings(repo).get("app") == "codex"
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"app": ["codex"]})
+    assert load_settings(repo).get("app") == ["codex"]
     assert load_settings(repo).source("app") == "user"
-    write_config(repo / ".consortium", {"app": "claude"})
-    assert load_settings(repo).get("app") == "claude"
+    write_config(repo / ".consortium", {"app": ["claude"]})
+    assert load_settings(repo).get("app") == ["claude"]
     assert load_settings(repo).source("app") == "repo"
-    settings = load_settings(repo, {"app": "codex"})
-    assert settings.get("app") == "codex"
+    settings = load_settings(repo, {"app": ["codex"]})
+    assert settings.get("app") == ["codex"]
     assert settings.source("app") == "brief"
     assert settings.get("thresholds.reviewers_min_lines") == 200
     assert settings.get("missing", 7) == 7
+
+
+@pytest.mark.parametrize("value", ["either", "both", "codex", [], ["codex", "codex"], ["unknown"], None, 1, {}])
+@pytest.mark.parametrize("location", ["user", "repo", "agent", "brief"])
+def test_invalid_app_forms_name_the_accepted_forms(tmp_path, value, location):
+    repo = make_repo(tmp_path / "repo")
+    patch = {"app": value}
+    if location == "brief":
+        load = lambda: load_settings(repo, patch)
+    else:
+        folder = Path(os.environ["CONSORTIUM_HOME"]) if location == "user" else repo / ".consortium"
+        if location == "agent":
+            patch = {"agents": {"sample-reader": patch}}
+        write_config(folder, patch)
+        load = lambda: load_settings(repo)
+    with pytest.raises(ConfigError) as error:
+        load()
+    message = str(error.value)
+    assert "all" in message and "list" in message and "[codex]" in message
+    if value == "either":
+        assert "now 'all'" in message
+    if value == "codex":
+        assert "one-item list" in message
+
+
+@pytest.mark.parametrize("value", [[], ["codex", "codex"], ["unknown"], "codex", None, [1], {}])
+def test_invalid_apps_is_refused(tmp_path, value):
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"apps": value})
+    with pytest.raises(ConfigError, match="apps:.*non-empty.*distinct"):
+        load_settings(None)
+
+
+@pytest.mark.parametrize("agent_patch", [False, True])
+def test_app_plus_items_append_or_need_an_inherited_list(tmp_path, agent_patch):
+    repo = make_repo(tmp_path / "repo")
+    def patch(app):
+        return {"agents": {"sample-reader": {"app": app}}} if agent_patch else {"app": app}
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), patch(["codex"]))
+    write_config(repo / ".consortium", patch(["+claude"]))
+    dotted = "agents.sample-reader.app" if agent_patch else "app"
+    settings = load_settings(repo)
+    assert settings.get(dotted) == ["codex", "claude"]
+    assert settings.source(dotted) == "user+repo"
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), patch("all"))
+    with pytest.raises(ConfigError, match=r"'\+' items need a list to add to, not 'all'"):
+        load_settings(repo)
 
 
 def test_plus_list_appends(tmp_path):
@@ -97,22 +143,22 @@ def test_plus_items_need_a_list_to_add_to(tmp_path):
 
 def test_brief_front_matter_sets_only_global_settings(tmp_path):
     brief = {"agent": "builder", "worktree": str(tmp_path / "wt"), "dictated": ["v1"], "device": "phone-1",
-             "app": "codex", "tier": "deep", "model": "one-job-model"}
+             "app": ["codex"], "tier": "deep", "model": "one-job-model"}
     settings = load_settings(None, brief)
-    assert (settings.get("app"), settings.source("app")) == ("codex", "brief")
+    assert (settings.get("app"), settings.source("app")) == (["codex"], "brief")
     assert settings.get("worktree") == {"dir": ".worktrees", "setup": []}
     assert all(settings.get(key) is None for key in ("agent", "dictated", "device", "tier", "model"))
 
 
 def test_repo_layer_found_from_worktree_and_symlinked_copy(tmp_path):
     first = make_repo(tmp_path / "first")
-    write_config(first / ".consortium", {"app": "claude"})
+    write_config(first / ".consortium", {"app": ["claude"]})
     second = make_repo(tmp_path / "second")
     (second / ".consortium").symlink_to(first / ".consortium", target_is_directory=True)
     linked = add_worktree(second, tmp_path / "linked")
     for repo in (first, second, linked):
         settings = load_settings(repo)
-        assert settings.get("app") == "claude"
+        assert settings.get("app") == ["claude"]
         assert settings.source("app") == "repo"
 
 

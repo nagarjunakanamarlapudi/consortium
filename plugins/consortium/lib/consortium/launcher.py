@@ -284,7 +284,9 @@ def execute(run_id: str) -> int:
     env["CONSORTIUM_LOCKS_HELD"] = ",".join(sorted(inherited | set(names)))
     owner = {"pid": os.getpid(), "command": f"consortium _run {run_id}", "cwd": meta["worktree"],
              "run_id": run_id, "started": meta["started"]}
-    run = registry.AgentRun(**{field.name: meta[field.name] for field in fields(registry.AgentRun)})
+    run_values = {field.name: meta[field.name] for field in fields(registry.AgentRun)}
+    run_values["allowed_apps"] = tuple(run_values["allowed_apps"])
+    run = registry.AgentRun(**run_values)
     code = 1
     with (rd / "stderr.log").open("w") as errors:
         try:

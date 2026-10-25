@@ -4,7 +4,7 @@ worktree: <absolute-worktree>
 device: <assigned-device-id> # Omit when the agent has no device capability.
 dictated: ["<verbatim-value>"] # Use [] when there are no dictated values.
 # Optional overrides; omit to use the resolved settings:
-# app: codex
+# app: [codex]
 # tier: deep
 # model: <model>
 # effort: <effort>
