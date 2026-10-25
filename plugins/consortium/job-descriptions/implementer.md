@@ -11,7 +11,7 @@ consortium:
   write_scope: all
   capabilities: [read, search, shell, edit, toolchain]
   tier: deep
-  app: either
+  app: all
   timeout_minutes: 90
   locks: []
   report: none

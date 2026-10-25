@@ -88,6 +88,7 @@ def test_brief_template_has_the_write_brief_sections_and_front_matter():
     assert {"agent", "worktree", "device", "dictated"} <= brief.front.keys()
     for field in ("app", "tier", "model", "effort", "timeout_minutes", "report"):
         assert re.search(rf"^# {field}:", text, re.MULTILINE)
+    assert "# app: [codex]" in text
     sections = [
         "Task", "Context", "Scope", "Do not change", "Premises", "Tests",
         "Done means", "Forbidden", "Stop when", "Report",

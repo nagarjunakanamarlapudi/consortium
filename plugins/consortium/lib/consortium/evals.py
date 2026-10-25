@@ -168,10 +168,10 @@ def run_case_codex(case: Case) -> CaseResult:
         front = brief.parse_brief((case.directory / "brief.md").read_text()).front
         settings = load_settings(repo, front)
         run = registry.resolve_agent(case.agent, settings, registry.load_registry(repo),
-                                     brief={**front, "app": "codex"}, manager_app="codex")
+                                     brief={**front, "app": ["codex"]}, manager_app="codex")
         run_id = launcher.prepare_run(case.agent, case.directory / "brief.md", repo,
                                       worktree=repo if run.mode == "worktree-write" else None,
-                                      overrides={"app": "codex"})
+                                      overrides={"app": ["codex"]})
         code = launcher.execute(run_id)
         rd = runlog.run_dir(run_id)
         status = json.loads((rd / "status.json").read_text())
@@ -278,23 +278,25 @@ def _command(args):
         if not cases:
             raise ValueError(f"no cases for {args.agent}" + (f"/{args.case}" if args.case else ""))
         app = args.app
+        settings = load_settings(repo)
         if app is None:
-            manager = "codex" if os.environ.get("CODEX_THREAD_ID") else "claude" if os.environ.get("CLAUDECODE") else "codex"
-            settings = load_settings(repo)
+            manager = "codex" if os.environ.get("CODEX_THREAD_ID") else "claude" if os.environ.get("CLAUDECODE") else None
             app = registry.resolve_agent(args.agent, settings, registry.load_registry(repo), manager_app=manager).app
         code = EXIT_OK
-        if app in ("codex", "both"):
-            for case in cases:
-                results = [run_case_codex(case) for _ in range(args.runs or case.data.get("runs", 1))]
-                combined = CaseResult(case.name, "codex", [grader for result in results for grader in result.graders])
-                _print_result(args.agent, combined)
-                if not combined.passed:
-                    code = EXIT_FAIL
-        if app in ("claude", "both"):
-            # Preserve the per-case native runs value when not overridden.
-            for case in cases:
-                if run_cases_claude(args.agent, [case], args.runs or case.data.get("runs", 1)):
-                    code = EXIT_FAIL
+        apps = settings.get("apps") if app == "all" else [app]
+        for app in apps:
+            if app == "codex":
+                for case in cases:
+                    results = [run_case_codex(case) for _ in range(args.runs or case.data.get("runs", 1))]
+                    combined = CaseResult(case.name, "codex", [grader for result in results for grader in result.graders])
+                    _print_result(args.agent, combined)
+                    if not combined.passed:
+                        code = EXIT_FAIL
+            else:
+                # Preserve the per-case native runs value when not overridden.
+                for case in cases:
+                    if run_cases_claude(args.agent, [case], args.runs or case.data.get("runs", 1)):
+                        code = EXIT_FAIL
         return code
     except (OSError, ValueError, ConfigError) as error:
         print(f"consortium eval: {error}", file=sys.stderr)
@@ -302,10 +304,10 @@ def _command(args):
 
 
 def register(sub: argparse._SubParsersAction) -> None:
-    parser = sub.add_parser("eval", help="run agent eval cases on Codex, Claude Code, or both")
+    parser = sub.add_parser("eval", help="run agent eval cases on one app or all configured apps")
     parser.add_argument("agent")
     parser.add_argument("--case")
-    parser.add_argument("--app", choices=("claude", "codex", "both"))
+    parser.add_argument("--app", choices=(*sorted(registry.APPS), "all"))
     parser.add_argument("--runs", type=_positive)
     parser.add_argument("--repo", type=Path)
     parser.set_defaults(func=_command)

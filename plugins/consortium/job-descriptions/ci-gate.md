@@ -10,7 +10,7 @@ consortium:
   mode: read-only
   capabilities: [read]
   tier: cheap
-  app: either
+  app: all
   timeout_minutes: 20
   locks: []
   report: gate.v1

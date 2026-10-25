@@ -10,7 +10,7 @@ consortium:
   mode: read-only
   capabilities: [read, search]
   tier: cheap
-  app: either
+  app: all
   timeout_minutes: 15
   locks: []
   report: locations.v1

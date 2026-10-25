@@ -10,7 +10,7 @@ consortium:
   mode: read-only
   capabilities: [read, device, dev-stack]
   tier: standard
-  app: either
+  app: all
   timeout_minutes: 60
   locks: []
   report: qa-lane.v1

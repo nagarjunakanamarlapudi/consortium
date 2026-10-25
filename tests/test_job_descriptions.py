@@ -46,7 +46,7 @@ def test_each_new_job_description_is_ready_and_matches_its_row(registry, name):
     assert job.path.name == f"{name}.md"
     assert job.front["name"] == name
     assert job.meta["version"] >= 1
-    assert job.meta["app"] == "either"
+    assert job.meta["app"] == "all"
     fields = (
         "station", "mode", "write_scope", "capabilities", "tier",
         "timeout_minutes", "report", "alt_reports",

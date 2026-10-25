@@ -10,7 +10,7 @@ consortium:
   mode: read-only
   capabilities: [read, search]
   tier: standard
-  app: either
+  app: all
   timeout_minutes: 30
   locks: []
   report: findings.v1

@@ -49,6 +49,7 @@ def test_registry_reads_plugin_and_repo_agents(tmp_path, package):
     assert registry["repo-reader"].ready
     assert registry["repo-reader"].meta["write_scope"] == "all"
     assert registry["repo-reader"].meta["timeout_minutes"] == 60
+    assert registry["repo-reader"].meta["app"] == "all"
     assert "cite evidence" in registry["repo-reader"].body
     linked = add_worktree(repo, tmp_path / "linked")
     assert "repo-reader" in load_registry(linked)
@@ -101,7 +102,7 @@ def test_front_matter_preserves_body_and_handles_plain_markdown():
 def test_resolve_agent_precedence(tmp_path, package):
     repo = make_repo(tmp_path / "repo")
     write_config(Path(os.environ["CONSORTIUM_HOME"]), {
-        "app": "codex", "agents": {"sample-reader": {"tier": "deep"}}
+        "app": ["codex"], "agents": {"sample-reader": {"tier": "deep"}}
     })
     registry = load_registry(repo)
     settings = load_settings(repo)
@@ -111,7 +112,7 @@ def test_resolve_agent_precedence(tmp_path, package):
     run = resolve_agent("sample-reader", settings, registry, {"model": "custom-model", "effort": "high"})
     assert (run.model, run.effort) == ("custom-model", "high")
     assert run.sources["model"] == "brief"
-    write_config(repo / ".consortium", {"app": "claude", "agents": {"sample-reader": {"tier": "cheap"}}})
+    write_config(repo / ".consortium", {"app": ["claude"], "agents": {"sample-reader": {"tier": "cheap"}}})
     run = resolve_agent("sample-reader", load_settings(repo), registry)
     assert (run.app, run.tier, run.model, run.effort) == ("claude", "cheap", "haiku", "low")
     with pytest.raises(FrozenInstanceError):
@@ -120,8 +121,8 @@ def test_resolve_agent_precedence(tmp_path, package):
 
 def test_repo_global_app_beats_user_agent_app(tmp_path, package):
     repo = make_repo(tmp_path / "repo")
-    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"agents": {"sample-reader": {"app": "codex"}}})
-    write_config(repo / ".consortium", {"app": "claude"})
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"agents": {"sample-reader": {"app": ["codex"]}}})
+    write_config(repo / ".consortium", {"app": ["claude"]})
     run = resolve_agent("sample-reader", load_settings(repo), load_registry(repo))
     assert (run.app, run.model, run.sources["app"]) == ("claude", "sonnet", "repo")
 
@@ -148,10 +149,113 @@ def test_sandbox_derivation(tmp_path, package, mode, capabilities, expected):
     assert run.sandbox == expected
 
 
-@pytest.mark.parametrize("manager, model", [("claude", "sonnet"), ("codex", "gpt-6.1-sol")])
-def test_either_becomes_the_manager_app(package, manager, model):
+@pytest.mark.parametrize("manager, model", [("claude", "sonnet"), ("codex", "gpt-6.1-sol"), (None, "gpt-6.1-sol")])
+def test_all_becomes_the_manager_app(package, manager, model):
     run = resolve_agent("sample-reader", load_settings(None), load_registry(None), manager_app=manager)
-    assert (run.app, run.model) == (manager, model)
+    assert (run.app, run.model) == (manager or "codex", model)
+    assert run.allowed_apps == ("codex", "claude")
+    assert run.sources["allowed_apps"] == run.sources["app"]
+
+
+@pytest.mark.parametrize("app, manager, expected", [
+    (["claude"], "codex", "claude"), (["codex"], "claude", "codex"),
+    (["claude", "codex"], "codex", "codex"), (["codex", "claude"], "claude", "claude"),
+    (["claude", "codex"], None, "claude"),
+])
+def test_explicit_app_list_preserves_order_and_prefers_manager(package, app, manager, expected):
+    run = resolve_agent("sample-reader", load_settings(None), load_registry(None), {"app": app}, manager)
+    assert run.app == expected
+    assert run.allowed_apps == tuple(app)
+    assert run.sources["app"] == run.sources["allowed_apps"] == "brief"
+
+
+def test_narrowed_apps_refuse_an_agent_outside_the_list(tmp_path, package):
+    state = Path(os.environ["CONSORTIUM_HOME"])
+    write_config(state, {"apps": ["codex"]})
+    run = resolve_agent("sample-reader", load_settings(None), load_registry(None), manager_app="claude")
+    assert run.app == "codex" and run.allowed_apps == ("codex",)
+    write_config(state, {"apps": ["codex"], "agents": {"sample-reader": {"app": ["claude"]}}})
+    with pytest.raises(ConfigError, match="claude"):
+        resolve_agent("sample-reader", load_settings(None), load_registry(None), manager_app="claude")
+
+
+@pytest.mark.parametrize("location", ["global", "agent", "job", "brief"])
+def test_app_names_must_be_in_configured_apps(package, location):
+    patch = {"apps": ["codex"]}
+    front = {}
+    if location == "global":
+        patch["app"] = ["claude"]
+    elif location == "agent":
+        patch["agents"] = {"sample-reader": {"app": ["claude"]}}
+    elif location == "job":
+        write_job(package / "job-descriptions", "sample-reader", app=["claude"])
+    else:
+        front["app"] = ["claude"]
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), patch)
+    with pytest.raises(ConfigError, match=r"app:.*all.*list.*\[codex\].*claude"):
+        resolve_agent("sample-reader", load_settings(None, front), load_registry(None), front)
+
+
+def test_all_uses_configured_app_order(package):
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"apps": ["claude", "codex"]})
+    run = resolve_agent("sample-reader", load_settings(None), load_registry(None))
+    assert run.app == "claude" and run.allowed_apps == ("claude", "codex")
+
+
+@pytest.mark.parametrize("inherited, patch, expected", [
+    (["codex"], ["+claude"], ("codex", "claude")),
+    ("all", ["+claude"], None),
+])
+def test_agent_app_appends_to_job_list(package, inherited, patch, expected):
+    write_job(package / "job-descriptions", "sample-reader", app=inherited)
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), {"agents": {"sample-reader": {"app": patch}}})
+    if expected is None:
+        with pytest.raises(ConfigError, match=r"'\+' items need a list to add to, not 'all'"):
+            resolve_agent("sample-reader", load_settings(None), load_registry(None))
+    else:
+        run = resolve_agent("sample-reader", load_settings(None), load_registry(None))
+        assert run.allowed_apps == expected
+        assert run.sources["app"] == run.sources["allowed_apps"] == "plugin+user"
+
+
+@pytest.mark.parametrize("agent_patch", [False, True])
+def test_app_layers_alternate_all_and_lists(tmp_path, package, agent_patch):
+    repo = make_repo(tmp_path / "repo")
+    def patch(app):
+        return {"agents": {"sample-reader": {"app": app}}} if agent_patch else {"app": app}
+    write_config(Path(os.environ["CONSORTIUM_HOME"]), patch(["codex"]))
+    write_config(repo / ".consortium", patch("all"))
+    jobs = load_registry(repo)
+    run = resolve_agent("sample-reader", load_settings(repo), jobs, manager_app="claude")
+    assert (run.app, run.sources["app"]) == ("claude", "repo")
+    front = {"app": ["claude"]}
+    run = resolve_agent("sample-reader", load_settings(repo, front), jobs, front, "codex")
+    assert run.allowed_apps == ("claude",)
+    assert (run.app, run.sources["app"], run.sources["allowed_apps"]) == ("claude", "brief", "brief")
+
+
+@pytest.mark.parametrize("value", ["either", "both", "codex", [], ["codex", "codex"], ["unknown"], None, 1, {}])
+@pytest.mark.parametrize("location", ["job", "brief"])
+def test_invalid_app_in_job_or_direct_brief(package, value, location):
+    if location == "job":
+        write_job(package / "job-descriptions", "bad-agent", app=value)
+        load = lambda: load_registry(None)
+    else:
+        load = lambda: resolve_agent("sample-reader", load_settings(None), load_registry(None), {"app": value})
+    with pytest.raises(ConfigError) as error:
+        load()
+    message = str(error.value)
+    assert "all" in message and "list" in message and "[codex]" in message
+    if value == "either":
+        assert "now 'all'" in message
+    if value == "codex":
+        assert "one-item list" in message
+
+
+@pytest.mark.parametrize("manager", ["all", "either", ["codex"]])
+def test_manager_must_be_launchable(package, manager):
+    with pytest.raises(ConfigError, match="manager_app"):
+        resolve_agent("sample-reader", load_settings(None), load_registry(None), manager_app=manager)
 
 
 def test_notes_locks_and_tier_settings_are_applied(tmp_path, package):

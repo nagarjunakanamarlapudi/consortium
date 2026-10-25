@@ -78,9 +78,10 @@ are for worktree-write agents.
    to write and operate modes. Read-only agents stay on the launcher:
    a spawned agent keeps the manager's permissions, whatever its role sets.
 4. On a quota error, rerun once in the other app. Preserve task, scope,
-   worktree and evidence, change the retry brief's `app`, and explain it
-   again so model and effort resolve for that app. If the retry fails,
-   return the failure to the owner; do not loop between apps.
+   worktree and evidence, set the retry brief's `app` to a list holding only
+   the other app, such as `[claude]`, and explain it again so model and
+   effort resolve for that app. If the retry fails, return the failure to
+   the owner; do not loop between apps.
 
 Accept a report only after checking its schema, status, scope and evidence.
 `NEEDS_CONTEXT` needs the missing decision; `BLOCKED` needs the unavailable
@@ -132,6 +133,6 @@ The owner's gates still apply; nothing merges without the owner.
 A correction becomes a change to a job description, the brief check or
 CLAUDE.md the same day, with a test case. Keep generic lessons in the
 plugin and repo-specific instructions in that repo. After changing a job
-description, run its cases in both apps:
-`consortium eval <agent> --app both`. Record the result; a prose reminder
+description, run its cases in every app:
+`consortium eval <agent> --app all`. Record the result; a prose reminder
 without a tested change does not close the correction.

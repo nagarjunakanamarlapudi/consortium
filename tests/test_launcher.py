@@ -81,7 +81,7 @@ def test_bad_brief_is_refused_before_codex_starts(run_cli, launch_case):
 
 
 def test_claude_agent_exits_3(run_cli, launch_case):
-    job_patch(launch_case, app="claude")
+    job_patch(launch_case, app=["claude"])
     result = invoke(run_cli, launch_case)
     assert result.returncode == 3
     assert "scratch-searcher runs on Claude Code here; dispatch consortium:scratch-searcher" in result.stderr
@@ -110,6 +110,17 @@ def test_argv_for_a_read_only_reviewer(launch_case):
         "-c", "allow_login_shell=false", "-s", "read-only", "-C", str(repo), "--json",
         "--output-schema", "/tmp/run/schema.json", "-o", "/tmp/run/last.md", "-",
     ]
+
+
+def test_execution_restores_allowed_apps_tuple(launch_case, monkeypatch):
+    original = launcher.codex_argv
+    captured = []
+    def argv(run, repo, rd):
+        captured.append(run.allowed_apps)
+        return original(run, repo, rd)
+    monkeypatch.setattr(launcher, "codex_argv", argv)
+    assert launcher.execute(prepared(launch_case)) == 0
+    assert captured == [("codex", "claude")]
 
 
 def test_argv_for_a_device_agent_is_full_access(launch_case):

@@ -2,7 +2,8 @@
 # Layers, a later one winning: this file < ~/.consortium/config.yaml < <repo>/.consortium/config.yaml < the brief.
 # A list whose items all start with "+" adds to the list it overrides.
 version: 1
-app: either                 # claude | codex | either; either = the manager's own app
+apps: [codex, claude]       # the apps agents can run in; when no manager decides, the first one runs
+app: all                    # all, or a list from apps such as [codex]: the manager's app when listed, else the first
 ceiling: normal             # lean | normal | full
 
 tiers:

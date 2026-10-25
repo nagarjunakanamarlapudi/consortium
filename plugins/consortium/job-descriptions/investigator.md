@@ -11,7 +11,7 @@ consortium:
   write_scope: tests
   capabilities: [read, search, shell, edit, toolchain, device, dev-stack]
   tier: deep
-  app: either
+  app: all
   timeout_minutes: 45
   locks: []
   report: case.v1

@@ -8,7 +8,7 @@ consortium:
   mode: read-only
   capabilities: [read, search]
   tier: cheap
-  app: either
+  app: all
   locks: []
   report: locations.v1
 ---

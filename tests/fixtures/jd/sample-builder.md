@@ -9,7 +9,7 @@ consortium:
   write_scope: all
   capabilities: [read, search, shell, edit, toolchain]
   tier: deep
-  app: codex
+  app: [codex]
   timeout_minutes: 45
   locks: [test-stack]
   report: findings.v1
