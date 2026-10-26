@@ -22,6 +22,16 @@ if mode == "sleep":
                              "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(90)"])
     Path(os.environ["FAKE_CODEX_RECORD"] + ".child").write_text(str(child.pid))
     time.sleep(90)
+if mode == "session":
+    handler = "signal.signal(signal.SIGTERM, signal.SIG_IGN); " if os.environ.get(
+        "FAKE_CODEX_CHILD_IGNORE_TERM") == "1" else ""
+    child = subprocess.Popen([sys.executable, "-c", "import signal,time; " + handler +
+                             "print('ready', flush=True); time.sleep(90)"],
+                             start_new_session=True, stdout=subprocess.PIPE)
+    child.stdout.readline()
+    child.stdout.close()
+    Path(os.environ["FAKE_CODEX_RECORD"] + ".child").write_text(str(child.pid))
+    time.sleep(90)
 if mode == "quota":
     print("usage limit reached", file=sys.stderr)
     sys.exit(1)

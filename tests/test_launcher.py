@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -213,6 +214,144 @@ def test_timeout_kills_the_run(run_cli, launch_case):
     for pid in pids:
         state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
         assert not state or state.startswith("Z"), (pid, state)
+
+
+@pytest.fixture
+def session_case(launch_case, monkeypatch):
+    monkeypatch.setenv("FAKE_CODEX_MODE", "session")
+    run_id = prepared(launch_case)
+    try:
+        yield run_id, folder(launch_case)
+    finally:
+        record = launch_case[2]
+        pids = [json.loads(record.read_text())["pid"]] if record.exists() else []
+        child_record = Path(str(record) + ".child")
+        if child_record.exists():
+            pids.append(int(child_record.read_text()))
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+
+
+@pytest.mark.parametrize("outside", [False, True], ids=["detached-child", "unrelated-process"])
+def test_timeout_kills_commands_in_their_own_sessions(run_cli, launch_case, session_case, outside):
+    run_id, rd = session_case
+    meta = json.loads((rd / "meta.json").read_text())
+    meta["timeout_minutes"] = 0.02
+    (rd / "meta.json").write_text(json.dumps(meta))
+    other = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(90)"],
+                             start_new_session=True) if outside else None
+    try:
+        started = time.monotonic()
+        result = run_cli("_run", run_id, env={"FAKE_CODEX_CHILD_IGNORE_TERM": "1"})
+        assert result.returncode == 124, result.stderr
+        assert 10 <= time.monotonic() - started < 25
+        status = json.loads((rd / "status.json").read_text())
+        assert (status["status"], status["error"], status["exit_code"]) == ("FAILED", "timeout", 124)
+        pids = [json.loads(launch_case[2].read_text())["pid"],
+                int(Path(str(launch_case[2]) + ".child").read_text())]
+        for pid in pids:
+            state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+            assert not state or state.startswith("Z"), (pid, state)
+        if other is not None:
+            assert other.poll() is None
+    finally:
+        if other is not None:
+            other.kill()
+            other.wait()
+
+
+@pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM])
+def test_launcher_forwards_signals_to_commands_in_their_own_sessions(launch_case, session_case, signum):
+    run_id, rd = session_case
+    process = subprocess.Popen([str(ROOT / "bin/consortium"), "_run", run_id],
+                               env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1", FAKE_CODEX_CHILD_IGNORE_TERM="0"),
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+    try:
+        child_record = Path(str(launch_case[2]) + ".child")
+        for _ in range(100):
+            if child_record.exists():
+                break
+            assert process.poll() is None
+            time.sleep(0.05)
+        assert child_record.exists()
+        child_pid = int(child_record.read_text())
+        assert os.getpgid(child_pid) == child_pid
+        process.send_signal(signum)
+        stdout, stderr = process.communicate(timeout=10)
+        assert process.returncode == 128 + signum, stdout + stderr
+        state = subprocess.run(["ps", "-o", "stat=", "-p", str(child_pid)], capture_output=True, text=True).stdout.strip()
+        assert not state or state.startswith("Z"), (child_pid, state)
+        assert json.loads((rd / "status.json").read_text())["exit_code"] == 128 + signum
+    finally:
+        if process.poll() is None:
+            process.kill()
+        process.communicate(timeout=10)
+
+
+def test_process_groups_follow_all_descendants_from_one_snapshot(monkeypatch):
+    calls = []
+    def ps(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return subprocess.CompletedProcess(argv, 0, "103 102 103\n102 101 101\n101 100 101\n"
+                                                  "100 42 100\n200 42 200\n201 200 201\n")
+    monkeypatch.setattr(launcher.subprocess, "run", ps)
+    assert launcher._process_groups(100) == {100, 101, 103}
+    assert calls == [(["ps", "-A", "-o", "pid=,ppid=,pgid="],
+                      {"check": True, "capture_output": True, "text": True})]
+
+
+@pytest.mark.parametrize("failure", [FileNotFoundError("ps"), subprocess.CalledProcessError(1, "ps"),
+                                     "garbled table\n100 42 100\n101 100 101 extra\n"])
+def test_process_groups_without_a_usable_table_still_include_codex(monkeypatch, failure):
+    def ps(argv, **kwargs):
+        if isinstance(failure, Exception):
+            raise failure
+        return subprocess.CompletedProcess(argv, 0, failure)
+    monkeypatch.setattr(launcher.subprocess, "run", ps)
+    assert launcher._process_groups(100) == {100}
+
+
+@pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+def test_signaling_a_gone_or_unreaped_group_continues(monkeypatch, error):
+    calls = []
+    def killpg(pgid, signum):
+        calls.append((pgid, signum))
+        raise error()
+    monkeypatch.setattr(launcher.os, "killpg", killpg)
+    launcher._kill_groups({100, 101}, signal.SIGKILL)
+    assert set(calls) == {(100, signal.SIGKILL), (101, signal.SIGKILL)}
+
+
+def test_timeout_keeps_groups_from_before_term_and_discovers_new_groups(launch_case, monkeypatch):
+    run_id = prepared(launch_case)
+    events = []
+    snapshots = iter([{100, 101}, {100, 102}])
+    popen = launcher.subprocess.Popen
+    class Child:
+        pid = 100
+        def wait(self, timeout=None):
+            if timeout is not None:
+                raise subprocess.TimeoutExpired("codex", timeout)
+            events.append("wait")
+            return -signal.SIGTERM
+    def groups(pid):
+        assert pid == 100
+        events.append("snapshot")
+        return next(snapshots)
+    def spawn(argv, *args, **kwargs):
+        return Child() if argv[0] == launcher.CODEX_BIN else popen(argv, *args, **kwargs)
+    monkeypatch.setattr(launcher, "_environment", lambda *args: {})
+    monkeypatch.setattr(launcher.subprocess, "Popen", spawn)
+    monkeypatch.setattr(launcher, "_process_groups", groups)
+    monkeypatch.setattr(launcher, "_kill_groups", lambda groups, sig: events.append((set(groups), sig)))
+    monkeypatch.setattr(launcher.time, "sleep", lambda seconds: events.append(("sleep", seconds)))
+    monkeypatch.setattr(launcher, "finalize", lambda run_id, code: events.append(("finalize", code)))
+    assert launcher.execute(run_id) == 124
+    assert events == ["snapshot", ({100, 101}, signal.SIGTERM), ("sleep", 10), "snapshot",
+                      ({100, 101, 102}, signal.SIGKILL), "wait", ("finalize", 124)]
 
 
 def test_scope_violation_is_recorded(run_cli, launch_case, tmp_path):
