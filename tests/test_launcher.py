@@ -263,7 +263,7 @@ def test_timeout_kills_commands_in_their_own_sessions(run_cli, launch_case, sess
             other.wait()
 
 
-@pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM])
+@pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM, signal.SIGHUP])
 def test_launcher_forwards_signals_to_commands_in_their_own_sessions(launch_case, session_case, signum):
     run_id, rd = session_case
     process = subprocess.Popen([str(ROOT / "bin/consortium"), "_run", run_id],
@@ -285,6 +285,11 @@ def test_launcher_forwards_signals_to_commands_in_their_own_sessions(launch_case
         state = subprocess.run(["ps", "-o", "stat=", "-p", str(child_pid)], capture_output=True, text=True).stdout.strip()
         assert not state or state.startswith("Z"), (child_pid, state)
         assert json.loads((rd / "status.json").read_text())["exit_code"] == 128 + signum
+        assert json.loads((rd / "status.json").read_text())["status"] == "FAILED"
+        assert (rd / "scope.json").exists()
+        codex_pid = json.loads(launch_case[2].read_text())["pid"]
+        state = subprocess.run(["ps", "-o", "stat=", "-p", str(codex_pid)], capture_output=True, text=True).stdout.strip()
+        assert not state or state.startswith("Z"), (codex_pid, state)
     finally:
         if process.poll() is None:
             process.kill()

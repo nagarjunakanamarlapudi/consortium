@@ -25,6 +25,7 @@
         "real",
         "known_flake",
         "infra",
+        "timeout",
         null
       ]
     },
