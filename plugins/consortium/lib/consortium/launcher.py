@@ -266,11 +266,35 @@ def _run_locks(meta, task):
     return sorted(set(names))
 
 
-def _kill_group(child, signum):
+def _process_groups(pid):
+    groups = {pid}
     try:
-        os.killpg(child.pid, signum)
-    except ProcessLookupError:
-        pass
+        table = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid="],
+                               check=True, capture_output=True, text=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        # Without a process table, still stop Codex's own group; a failure here must not leave the run unstopped.
+        return groups
+    children = {}
+    for line in table.splitlines():
+        try:
+            child, parent, group = map(int, line.split())
+        except ValueError:
+            continue
+        children.setdefault(parent, []).append((child, group))
+    pending = [pid]
+    while pending:
+        for child, group in children.get(pending.pop(), []):
+            groups.add(group)
+            pending.append(child)
+    return groups
+
+
+def _kill_groups(groups, signum):
+    for group in groups:
+        try:
+            os.killpg(group, signum)
+        except (ProcessLookupError, PermissionError):
+            pass
 
 
 def execute(run_id: str) -> int:
@@ -298,16 +322,19 @@ def execute(run_id: str) -> int:
                     previous = {}
                     try:
                         for signum in (signal.SIGINT, signal.SIGTERM):
-                            previous[signum] = signal.signal(signum, lambda sig, frame: _kill_group(child, sig))
+                            previous[signum] = signal.signal(
+                                signum, lambda sig, frame: _kill_groups(_process_groups(child.pid), sig))
                         try:
                             code = child.wait(timeout=meta["timeout_minutes"] * 60)
                             if code < 0:
                                 code = 128 - code
                         except subprocess.TimeoutExpired:
-                            _kill_group(child, signal.SIGTERM)
+                            groups = _process_groups(child.pid)
+                            _kill_groups(groups, signal.SIGTERM)
                             # Even if Codex exits on TERM, descendants may ignore it.
                             time.sleep(10)
-                            _kill_group(child, signal.SIGKILL)
+                            groups.update(_process_groups(child.pid))
+                            _kill_groups(groups, signal.SIGKILL)
                             child.wait()
                             code = 124
                     finally:
