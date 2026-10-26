@@ -104,8 +104,9 @@ Run `consortium gate --worktree <worktree> --wait` for the full test. For a
 pinned committed tree, add `--commit <sha>`; it must equal that worktree's
 HEAD. The gate runs the configured command with its locks and cleanup;
 ci-gate classifies a failure and a known flake may rerun once. Read the
-gate report and cleanup results. A real or infrastructure failure blocks
-progress. Any subsequent code change requires checks on the changed tree.
+gate report and cleanup results. A real failure, infrastructure failure or
+timed-out gate blocks progress. Any subsequent code change requires checks
+on the changed tree.
 
 At the owner's gate, ask in chat and wait for the product choice,
 production-write approval or hard-to-undo plan approval. In Claude Code,

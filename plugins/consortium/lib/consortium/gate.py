@@ -9,12 +9,17 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
 import subprocess
 import sys
+import time
 
 from consortium import brief, launcher, locks, paths, registry, runlog, schemas
 from consortium.cli import EXIT_FAIL, EXIT_OK
 from consortium.config import ConfigError, load_settings
+
+
+AFTER_TIMEOUT_SECONDS = 10 * 60
 
 
 def resolve_gate_command(repo: Path, settings) -> str:
@@ -46,13 +51,16 @@ def run_gate(repo: Path, *, worktree: Path | None, commit: str | None, detach: b
     command = resolve_gate_command(cwd, settings)
     if not isinstance(command, str) or not command.strip():
         raise ConfigError("gate.command: expected one shell command, or auto")
+    timeout = settings.get("gate.timeout_minutes")
+    if type(timeout) is not int or timeout <= 0:
+        raise ConfigError("gate.timeout_minutes: expected a positive integer")
     names = sorted(set(settings.get("gate.locks", [])) | (
         {"disk"} if settings.get("locks.disk_floor_gb") > 0 else set()))
     run_id = runlog.new_run_id("ci-gate")
     manager = "codex" if os.environ.get("CODEX_THREAD_ID") else "claude" if os.environ.get("CLAUDECODE") else None
     meta = {"run_id": run_id, "agent": "ci-gate", "repo": str(paths.main_checkout(repo)),
             "worktree": str(cwd), "branch": launcher._branch(cwd),
-            "commit": head + ("+dirty" if dirty else ""), "command": command,
+            "commit": head + ("+dirty" if dirty else ""), "command": command, "timeout_minutes": timeout,
             "locks": names, "started": launcher._now(), "manager": manager,
             "version": registry.load_registry(repo)["ci-gate"].meta["version"]}
     rd = runlog.run_dir(run_id)
@@ -87,30 +95,84 @@ def _held_environment(names):
             os.environ["CONSORTIUM_LOCKS_HELD"] = previous
 
 
-def _shell(command, cwd, output):
+@contextmanager
+def _stop_signals():
+    stopped, previous = [], {}
     try:
-        code = subprocess.run(["bash", "-o", "pipefail", "-c", command], cwd=cwd,
-                              stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT).returncode
-        return 128 - code if code < 0 else code
+        for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+            previous[signum] = signal.signal(signum, lambda sig, frame: stopped.append(sig))
+        yield stopped
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+
+def _wait_step(child, deadline, stopped, seen):
+    while True:
+        if len(stopped) > seen:
+            launcher._stop_process(child, stopped[seen])
+            return 128 + stopped[seen]
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            launcher._stop_process(child)
+            raise subprocess.TimeoutExpired(child.args, 0)
+        try:
+            code = child.wait(timeout=min(0.1, remaining))
+            if len(stopped) == seen:
+                return 128 - code if code < 0 else code
+        except subprocess.TimeoutExpired:
+            pass
+
+
+def _shell(command, cwd, output, deadline, stopped, *, cleanup=False):
+    if stopped and not cleanup:
+        return 128 + stopped[0]
+    seen = len(stopped)
+    if time.monotonic() >= deadline:
+        raise subprocess.TimeoutExpired(command, 0)
+    try:
+        child = subprocess.Popen(["bash", "-o", "pipefail", "-c", command], cwd=cwd,
+                                 stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT,
+                                 start_new_session=True)
+        return _wait_step(child, deadline, stopped, seen)
     except OSError as error:
         print(str(error), file=output, flush=True)
         return 1
 
 
-def _attempt(meta, settings, rd, cleanup):
+def _attempt(meta, settings, rd, cleanup, stopped):
+    deadline = time.monotonic() + meta["timeout_minutes"] * 60
+    code, failed_step, timed_out = 0, None, False
     with (rd / "gate.log").open("w") as output, (rd / "steps.log").open("a") as steps:
         try:
             for command in settings.get("gate.before", []):
                 print(f"==> before: {command}", file=steps, flush=True)
-                code = _shell(command, meta["worktree"], steps)
+                failed_step = "before: " + command
+                code = _shell(command, meta["worktree"], steps, deadline, stopped)
                 if code:
-                    return code, "before: " + command
-            code = _shell(meta["command"], meta["worktree"], output)
-            return code, "gate" if code else None
+                    break
+            else:
+                failed_step = "gate"
+                code = _shell(meta["command"], meta["worktree"], output, deadline, stopped)
+            if code == 0:
+                failed_step = None
+        except subprocess.TimeoutExpired:
+            code, timed_out = 124, True
         finally:
             for command in settings.get("gate.after", []):
                 print(f"==> after: {command}", file=steps, flush=True)
-                cleanup.append({"step": command, "exit_code": _shell(command, meta["worktree"], steps)})
+                seen = len(stopped)
+                try:
+                    cleanup_code = _shell(command, meta["worktree"], steps,
+                                          time.monotonic() + AFTER_TIMEOUT_SECONDS, stopped, cleanup=True)
+                except subprocess.TimeoutExpired:
+                    cleanup_code = 124
+                cleanup.append({"step": command, "exit_code": cleanup_code})
+                if len(stopped) > seen:
+                    failed_step = "after: " + command
+    if stopped:
+        code, timed_out = 128 + stopped[0], False
+    return code, failed_step, timed_out
 
 
 def _classifier_brief(meta, settings, rd, code, reruns, cleanup):
@@ -149,7 +211,7 @@ def claude_argv(run: registry.AgentRun, schema: dict) -> list[str]:
             "--output-format", "json"]
 
 
-def _claude_classifier(meta, source, run):
+def _claude_classifier(meta, source, run, stopped):
     run_id = runlog.new_run_id("ci-gate")
     rd = runlog.run_dir(run_id)
     started = launcher._now()
@@ -168,8 +230,9 @@ def _claude_classifier(meta, source, run):
     with (rd / "stderr.log").open("w") as errors:
         try:
             with (rd / "prompt.md").open() as stdin, (rd / "claude-output.json").open("w") as output:
-                code = subprocess.run(claude_argv(run, schema), cwd=meta["worktree"], stdin=stdin,
-                                      stdout=output, stderr=errors, timeout=run.timeout_minutes * 60).returncode
+                child = subprocess.Popen(claude_argv(run, schema), cwd=meta["worktree"], stdin=stdin,
+                                         stdout=output, stderr=errors, start_new_session=True)
+                code = _wait_step(child, time.monotonic() + run.timeout_minutes * 60, stopped, 0)
             data = json.loads((rd / "claude-output.json").read_text())
             if not isinstance(data, dict):
                 data = {}
@@ -203,13 +266,15 @@ def _claude_classifier(meta, source, run):
     return result
 
 
-def _classify(meta, settings, rd, code, reruns, cleanup):
+def _classify(meta, settings, rd, code, reruns, cleanup, stopped):
     try:
         source, run = _classifier_brief(meta, settings, rd, code, reruns, cleanup)
+        if stopped:
+            return None
         if run.app == "claude":
-            return _claude_classifier(meta, source, run)
+            return _claude_classifier(meta, source, run, stopped)
         classifier_id = launcher.prepare_run("ci-gate", source, Path(meta["repo"]), worktree=Path(meta["worktree"]))
-        launcher.execute(classifier_id)
+        launcher.execute(classifier_id, stopped=stopped)
         status = launcher.wait(classifier_id, 0)
         if status["status"] == "DONE":
             report = launcher._read_json(runlog.run_dir(classifier_id) / "report.json")
@@ -229,8 +294,9 @@ def _finish(meta, code, failure_class, flake, failed_step, reruns, cleanup, evid
     rd = runlog.run_dir(meta["run_id"])
     status = "DONE" if code == 0 else "FAILED"
     error = None if code == 0 else failure_class or "unclassified"
-    value = {"schema": "gate.v1", "status": status,
-             "summary": f"Gate {'passed' if code == 0 else 'failed'} with exit {code}; reruns: {reruns}.",
+    summary = (f"Gate stopped at its {meta['timeout_minutes']}-minute limit." if failure_class == "timeout" else
+               f"Gate {'passed' if code == 0 else 'failed'} with exit {code}; reruns: {reruns}.")
+    value = {"schema": "gate.v1", "status": status, "summary": summary,
              "payload": {"commit": meta["commit"], "command": meta["command"], "exit_code": code,
                          "failed_step": failed_step, "failure_class": failure_class, "flake": flake,
                          "reruns": reruns, "cleanup": cleanup, "log": str(rd / "gate.log")},
@@ -258,6 +324,12 @@ def execute(run_id: str) -> int:
     current = launcher._read_json(rd / "status.json")
     if current["status"] != "running":
         return current["exit_code"]
+    with _stop_signals() as stopped:
+        return _execute(meta, rd, stopped)
+
+
+def _execute(meta, rd, stopped):
+    run_id = meta["run_id"]
     code, failure_class, flake, failed_step, reruns = 1, None, None, None, 0
     cleanup, evidence = [], []
     owner = {"pid": os.getpid(), "command": f"consortium _gate {run_id}", "cwd": meta["worktree"],
@@ -269,13 +341,18 @@ def execute(run_id: str) -> int:
                 locks._check_disk(Path(meta["repo"]), settings)
             with _held_environment(meta["locks"]):
                 while True:
-                    code, failed_step = _attempt(meta, settings, rd, cleanup)
+                    code, failed_step, timed_out = _attempt(meta, settings, rd, cleanup, stopped)
+                    if stopped or timed_out:
+                        failure_class, flake = "timeout" if timed_out else None, None
+                        break
                     if failed_step and failed_step.startswith("before: "):
                         failure_class, flake = "infra", None
                         break
                     if code == 0:
                         break
-                    classified = _classify(meta, settings, rd, code, reruns, cleanup)
+                    classified = _classify(meta, settings, rd, code, reruns, cleanup, stopped)
+                    if stopped:
+                        break
                     payload = classified["payload"] if classified else {}
                     failure_class, flake = payload.get("failure_class"), payload.get("flake")
                     failed_step = payload.get("failed_step") or "gate"
@@ -288,6 +365,8 @@ def execute(run_id: str) -> int:
         with (rd / "stderr.log").open("a") as output:
             print(f"{type(error).__name__}: {error}", file=output)
         code, failure_class, flake, failed_step = code or 1, "infra", None, "runner"
+    if stopped:
+        code, failure_class, flake = 128 + stopped[0], None, None
     try:
         _finish(meta, code, failure_class, flake, failed_step, reruns, cleanup, evidence)
     except Exception as error:  # Never leave status.json at "running": `gate --wait` would never return.

@@ -66,6 +66,7 @@ def test_explain_global_settings_with_sources(run_cli, tmp_path):
     assert result.returncode == 0, result.stderr
     assert text_row(result.stdout, "app") == ["app", "you", "[codex]"]
     assert text_row(result.stdout, "thresholds.reviewers_min_lines") == ["thresholds.reviewers_min_lines", "default", "200"]
+    assert text_row(result.stdout, "gate.timeout_minutes") == ["gate.timeout_minutes", "default", "120"]
     assert text_row(result.stdout, "you") == ["you", f"{state}/config.yaml", "1 setting"]
     assert text_row(result.stdout, "default") == ["default", "<plugin>/defaults.yaml"]
     result = run_cli("explain", "--json", cwd=tmp_path)

@@ -122,6 +122,7 @@ def test_type_mismatch_is_an_error(tmp_path, patch, field):
     ({}, {"checks": {"dart": ["flutter analyze", "flutter test {tests}"]}}, "checks.dart",
      ["flutter analyze", "flutter test {tests}"]),
     ({}, {"gate": {"command": "make check"}}, "gate.command", "make check"),
+    ({}, {"gate": {"timeout_minutes": 30}}, "gate.timeout_minutes", 30),
     ({"checks": {"python": ["ruff check ."]}}, {"checks": {"python": "auto"}}, "checks.python", "auto"),
     ({}, {"locks": {"disk_floor_gb": 40.5}}, "locks.disk_floor_gb", 40.5),
 ])

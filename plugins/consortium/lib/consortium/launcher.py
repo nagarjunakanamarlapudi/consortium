@@ -297,7 +297,17 @@ def _kill_groups(groups, signum):
             pass
 
 
-def execute(run_id: str) -> int:
+def _stop_process(child, signum=signal.SIGTERM):
+    groups = _process_groups(child.pid)
+    _kill_groups(groups, signum)
+    # Even if the parent exits, descendants may ignore the signal.
+    time.sleep(10)
+    groups.update(_process_groups(child.pid))
+    _kill_groups(groups, signal.SIGKILL)
+    child.wait()
+
+
+def execute(run_id: str, *, stopped=None) -> int:
     rd = runlog.run_dir(run_id)
     meta = _read_json(rd / "meta.json")
     task = brief.parse_brief((rd / "brief.md").read_text())
@@ -319,23 +329,22 @@ def execute(run_id: str) -> int:
                     child = subprocess.Popen(codex_argv(run, Path(meta["worktree"]), rd),
                                              cwd=meta["worktree"], env=env, stdin=prompt,
                                              stdout=events, stderr=errors, start_new_session=True)
+
+                    def forward(sig, frame):
+                        if stopped is not None:
+                            stopped.append(sig)
+                        _kill_groups(_process_groups(child.pid), sig)
+
                     previous = {}
                     try:
-                        for signum in (signal.SIGINT, signal.SIGTERM):
-                            previous[signum] = signal.signal(
-                                signum, lambda sig, frame: _kill_groups(_process_groups(child.pid), sig))
+                        for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+                            previous[signum] = signal.signal(signum, forward)
                         try:
                             code = child.wait(timeout=meta["timeout_minutes"] * 60)
                             if code < 0:
                                 code = 128 - code
                         except subprocess.TimeoutExpired:
-                            groups = _process_groups(child.pid)
-                            _kill_groups(groups, signal.SIGTERM)
-                            # Even if Codex exits on TERM, descendants may ignore it.
-                            time.sleep(10)
-                            groups.update(_process_groups(child.pid))
-                            _kill_groups(groups, signal.SIGKILL)
-                            child.wait()
+                            _stop_process(child)
                             code = 124
                     finally:
                         for signum, handler in previous.items():

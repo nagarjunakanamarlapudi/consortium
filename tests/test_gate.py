@@ -4,14 +4,16 @@ import os
 from pathlib import Path
 import shlex
 import shutil
+import signal
 import subprocess
+import sys
 import time
 
 import pytest
 import yaml
 
-from consortium import brief, launcher, locks, paths, runlog
-from consortium.config import load_settings
+from consortium import brief, gate, launcher, locks, paths, runlog
+from consortium.config import ConfigError, load_settings
 from consortium.registry import load_registry, resolve_agent
 from consortium.schemas import load_schema, validate
 from test_cli import git
@@ -85,6 +87,48 @@ def report():
     return value
 
 
+def prepared_gate(repo, monkeypatch, minutes=0.02):
+    with monkeypatch.context() as patch:
+        patch.setattr(gate, "execute", lambda run_id: 0)
+        run_id = gate.run_gate(repo, worktree=None, commit=None, detach=False)
+    rd = runlog.run_dir(run_id)
+    meta = launcher._read_json(rd / "meta.json")
+    meta["timeout_minutes"] = minutes
+    launcher._write_json(rd / "meta.json", meta)
+    return run_id, rd
+
+
+@pytest.fixture
+def gate_step(gate_case):
+    record = gate_case / ".consortium/pids.json"
+    source = (
+        "import json,os,signal,subprocess,sys,time\n"
+        "signal.signal(signal.SIGINT, signal.SIG_DFL)\n"
+        "child = subprocess.Popen([sys.executable, '-c', "
+        "\"import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+        "print('ready', flush=True); time.sleep(90)\"], "
+        "start_new_session=True, stdout=subprocess.PIPE)\n"
+        "child.stdout.readline()\n"
+        "child.stdout.close()\n"
+        f"open({str(record)!r}, 'w').write(json.dumps([os.getpid(), child.pid]))\n"
+        "time.sleep(90)\n"
+    )
+    try:
+        yield f"exec {shlex.quote(sys.executable)} -c {shlex.quote(source)}", record
+    finally:
+        for pid in json.loads(record.read_text()) if record.exists() else []:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+
+def assert_step_stopped(record):
+    for pid in json.loads(record.read_text()):
+        state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+        assert not state or state.startswith("Z"), (pid, state)
+
+
 def test_green_gate_reports_exit_0_and_cleans_up(run_cli, gate_case):
     configure(gate_case, before=["echo prepared"], after=["echo cleanup; exit 7", "echo finished"])
     result = invoke(run_cli, gate_case)
@@ -93,6 +137,7 @@ def test_green_gate_reports_exit_0_and_cleans_up(run_cli, gate_case):
     assert result.stdout.strip() == f"{rd.name} DONE {rd / 'report.json'}"
     value = report()
     assert value["status"] == "DONE"
+    assert launcher._read_json(rd / "meta.json")["timeout_minutes"] == 120
     assert value["checks"] == [{"command": "printf 'green\\n'", "exit_code": 0}]
     assert value["payload"] == {
         "commit": git(gate_case, "rev-parse", "HEAD"), "command": "printf 'green\\n'", "exit_code": 0,
@@ -290,11 +335,11 @@ def test_gate_holds_locks_through_steps_classifier_and_rerun(run_cli, gate_case,
     real_hold = locks.hold
     observations = []
 
-    def observing_execute(run_id):
+    def observing_execute(run_id, **kwargs):
         held = locks.list_locks()
         observations.append({entry["name"] for entry in held})
         assert all(entry["run_id"] == gate_folder().name for entry in held)
-        return real_execute(run_id)
+        return real_execute(run_id, **kwargs)
 
     real_execute = launcher.execute
     monkeypatch.setattr(launcher, "execute", observing_execute)
@@ -434,6 +479,188 @@ def test_a_gate_command_that_is_not_one_string_is_refused_before_the_run(run_cli
     assert result.returncode == 1
     assert "gate.command" in result.stderr
     assert not list((paths.state_home() / "runs").glob("*/meta.json"))
+
+
+@pytest.mark.parametrize("minutes", [0, -1, "120", 1.5, True, None])
+def test_invalid_gate_timeout_is_refused_before_the_run(run_cli, gate_case, minutes):
+    config = gate_case / ".consortium/config.yaml"
+    values = yaml.safe_load(config.read_text())
+    values["gate"]["timeout_minutes"] = minutes
+    config.write_text(yaml.safe_dump(values))
+    with pytest.raises(ConfigError, match=r"gate\.timeout_minutes"):
+        gate.run_gate(gate_case, worktree=None, commit=None, detach=False)
+    result = invoke(run_cli, gate_case)
+    assert result.returncode == 1 and "gate.timeout_minutes" in result.stderr
+    assert not list((paths.state_home() / "runs").glob("*/meta.json"))
+
+
+def test_gate_timeout_skips_classification_and_rerun_and_cleans_up(run_cli, gate_case, monkeypatch, gate_step):
+    command, record = gate_step
+    configure(gate_case, command, after=["touch .consortium/cleaned"], names=["test-stack"])
+    run_id, rd = prepared_gate(gate_case, monkeypatch)
+    result = run_cli("_gate", run_id)
+    assert result.returncode == 124, result.stderr
+    value = report()
+    assert value["status"] == "FAILED"
+    assert {key: value["payload"][key] for key in (
+        "exit_code", "failure_class", "failed_step", "flake", "reruns")} == {
+            "exit_code": 124, "failure_class": "timeout", "failed_step": "gate", "flake": None, "reruns": 0}
+    assert "0.02-minute limit" in value["summary"]
+    assert value["payload"]["cleanup"] == [{"step": "touch .consortium/cleaned", "exit_code": 0}]
+    assert (gate_case / ".consortium/cleaned").exists()
+    assert not (gate_case.parent / "codex.json").exists()
+    assert not (rd / "classifier-brief.md").exists()
+    assert not (rd / "gate-attempt-1.log").exists()
+    row, = runlog.read_records()
+    assert row["status"] == "FAILED" and row["error"] == "timeout"
+    assert_step_stopped(record)
+    assert locks.list_locks() == []
+    with locks.hold(["test-stack"], 0, {"pid": os.getpid()}):
+        pass
+
+
+def test_before_step_timeout_names_the_step_and_skips_the_gate(run_cli, gate_case, monkeypatch):
+    configure(gate_case, "touch .consortium/started", before=["sleep 0.2"], after=["touch .consortium/cleaned"])
+    run_id, _ = prepared_gate(gate_case, monkeypatch, minutes=0.001)
+    assert run_cli("_gate", run_id).returncode == 124
+    value = report()
+    assert value["payload"]["failed_step"] == "before: sleep 0.2"
+    assert value["payload"]["failure_class"] == "timeout"
+    assert not (gate_case / ".consortium/started").exists()
+    assert (gate_case / ".consortium/cleaned").exists()
+    assert len(runlog.read_records()) == 1
+
+
+def test_attempt_limit_includes_time_spent_in_before_steps(run_cli, gate_case, monkeypatch):
+    configure(gate_case, "sleep 0.4", before=["sleep 0.4"])
+    run_id, _ = prepared_gate(gate_case, monkeypatch, minutes=0.01)
+    assert run_cli("_gate", run_id).returncode == 124
+    assert report()["payload"]["failed_step"] == "gate"
+    assert report()["payload"]["failure_class"] == "timeout"
+
+
+def test_an_ordinary_exit_124_is_still_classified(run_cli, gate_case):
+    configure(gate_case, "exit 124")
+    assert invoke(run_cli, gate_case).returncode == 1
+    assert report()["payload"]["failure_class"] == "real"
+    assert (gate_case.parent / "codex.json").exists()
+
+
+def test_signal_during_classification_does_not_rerun(gate_case, monkeypatch):
+    configure(gate_case, "exit 1", after=["echo after >> .consortium/cleanups"])
+
+    def classify(*args):
+        os.kill(os.getpid(), signal.SIGTERM)
+        return classification("known_flake", flake="clock race")
+
+    monkeypatch.setattr(gate, "_classify", classify)
+    gate.run_gate(gate_case, worktree=None, commit=None, detach=False)
+    value = report()
+    assert value["payload"]["exit_code"] == 128 + signal.SIGTERM
+    assert value["payload"]["failure_class"] is None
+    assert value["payload"]["reruns"] == 0
+    assert (gate_case / ".consortium/cleanups").read_text() == "after\n"
+
+
+def test_classifier_exit_143_without_a_stop_signal_is_an_ordinary_failure(run_cli, gate_case, monkeypatch):
+    binary = gate_case / ".consortium/classifier"
+    binary.write_text("#!/bin/sh\nexit 143\n")
+    binary.chmod(0o755)
+    monkeypatch.setenv("CONSORTIUM_CODEX", str(binary))
+    configure(gate_case, "exit 7", app=["codex"])
+    assert invoke(run_cli, gate_case).returncode == 1
+    value = report()
+    assert value["payload"]["exit_code"] == 7
+    assert value["payload"]["failure_class"] is None
+
+
+def test_after_step_timeout_is_recorded_and_later_cleanup_runs(gate_case, monkeypatch, gate_step):
+    command, record = gate_step
+    configure(gate_case, after=[command, "touch .consortium/cleaned"], names=["test-stack"])
+    assert gate.AFTER_TIMEOUT_SECONDS == 600
+    monkeypatch.setattr(gate, "AFTER_TIMEOUT_SECONDS", 1.2)
+    run_id = gate.run_gate(gate_case, worktree=None, commit=None, detach=False)
+    value = report()
+    assert value["status"] == "DONE" and value["payload"]["exit_code"] == 0
+    assert value["payload"]["cleanup"] == [{"step": command, "exit_code": 124},
+                                             {"step": "touch .consortium/cleaned", "exit_code": 0}]
+    assert launcher.wait(run_id, 0)["status"] == "DONE"
+    assert (gate_case / ".consortium/cleaned").exists()
+    assert_step_stopped(record)
+    assert locks.list_locks() == []
+
+
+@pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM, signal.SIGHUP])
+@pytest.mark.parametrize("step", ["gate", "before", "after"])
+def test_gate_stop_signals_stop_the_step_and_finish_cleanup(gate_case, monkeypatch, gate_step, signum, step):
+    command, record = gate_step
+    configure(gate_case, command if step == "gate" else "true",
+              before=[command] if step == "before" else [],
+              after=([command] if step == "after" else []) + ["touch .consortium/cleaned"], names=["test-stack"])
+    run_id, rd = prepared_gate(gate_case, monkeypatch, minutes=120)
+    process = subprocess.Popen([str(BIN), "_gate", run_id], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               text=True, start_new_session=True)
+    try:
+        for _ in range(100):
+            if record.exists():
+                break
+            assert process.poll() is None
+            time.sleep(0.05)
+        assert record.exists()
+        assert all(os.getpgid(pid) == pid for pid in json.loads(record.read_text()))
+        process.send_signal(signum)
+        stdout, stderr = process.communicate(timeout=25)
+        assert process.returncode == 128 + signum, stdout + stderr
+        value = report()
+        assert value["status"] == "FAILED"
+        assert value["payload"]["exit_code"] == 128 + signum
+        assert value["payload"]["failure_class"] is None and value["payload"]["flake"] is None
+        assert value["payload"]["reruns"] == 0
+        assert value["payload"]["failed_step"] == (step + ": " + command if step != "gate" else "gate")
+        assert (gate_case / ".consortium/cleaned").exists()
+        assert not (rd / "classifier-brief.md").exists()
+        assert len(runlog.read_records()) == 1
+        assert_step_stopped(record)
+        assert locks.list_locks() == []
+    finally:
+        if process.poll() is None:
+            process.kill()
+        process.communicate(timeout=10)
+
+
+@pytest.mark.parametrize("app", ["codex", "claude"])
+def test_stopping_the_gate_during_classification_stops_the_classifier(gate_case, monkeypatch, gate_step, app):
+    command, record = gate_step
+    binary = gate_case / ".consortium/classifier"
+    binary.write_text("#!/bin/sh\n" + command + "\n")
+    binary.chmod(0o755)
+    monkeypatch.setenv("CONSORTIUM_" + app.upper(), str(binary))
+    configure(gate_case, "exit 7", app=[app], after=["touch .consortium/cleaned"], names=["test-stack"])
+    run_id, _ = prepared_gate(gate_case, monkeypatch, minutes=120)
+    process = subprocess.Popen([str(BIN), "_gate", run_id], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               text=True, start_new_session=True)
+    try:
+        for _ in range(150):
+            if record.exists():
+                break
+            assert process.poll() is None
+            time.sleep(0.05)
+        assert record.exists()
+        process.send_signal(signal.SIGHUP)
+        stdout, stderr = process.communicate(timeout=25)
+        assert process.returncode == 128 + signal.SIGHUP, stdout + stderr
+        value = report()
+        assert value["status"] == "FAILED" and value["payload"]["exit_code"] == 128 + signal.SIGHUP
+        assert value["payload"]["failure_class"] is None and value["payload"]["reruns"] == 0
+        assert (gate_case / ".consortium/cleaned").exists()
+        assert all(row["status"] == "FAILED" for row in runlog.read_records())
+        assert len(runlog.read_records()) == 2
+        assert_step_stopped(record)
+        assert locks.list_locks() == []
+    finally:
+        if process.poll() is None:
+            process.kill()
+        process.communicate(timeout=10)
 
 
 @pytest.mark.parametrize("broken", ["_attempt", "_finish"])

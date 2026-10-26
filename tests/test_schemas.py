@@ -55,6 +55,15 @@ def test_none_schema_has_null_payload():
     assert validate(report("none", {}), schema)
 
 
+def test_gate_schema_accepts_timeout():
+    value = report("gate.v1", {
+        "commit": "abc123", "command": "pytest", "exit_code": 124, "failed_step": "gate",
+        "failure_class": "timeout", "flake": None, "reruns": 0, "cleanup": [], "log": "gate.log",
+    })
+    value["status"] = "FAILED"
+    assert validate(value, load_schema("gate.v1")) == []
+
+
 def test_validate_reports_errors_with_paths():
     instance = report("findings.v1", {"verdict": "unknown", "extra": True})
     errors = validate(instance, load_schema("findings.v1"))

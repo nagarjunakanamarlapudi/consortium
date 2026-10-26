@@ -93,6 +93,7 @@ worktree:
 
 gate:
   command: auto             # auto: `make test` if the Makefile has it, else `npm test`, else `pytest`
+  timeout_minutes: 120      # bounds each attempt's before steps and command
   before: []
   after: []
   locks: []
